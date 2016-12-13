@@ -7,4 +7,6 @@ char* AllZeroFill(int goalLen);
 //全零页
 void ZeroClear(char* buffer);
 int charToNum(char* numHead, int len);
+void writeNum(char* numHead, int len, int num);
+void writeStr(char* dest, int len, char* src, int totLen); //后面totLen-len都补0
 #endif

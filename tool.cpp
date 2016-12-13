@@ -29,3 +29,19 @@ int charToNum(char* numHead, int len) {
 		ret = ret * radix + numHead[i];
 	return ret;
 }
+
+void writeNum(char* numHead, int len, int num) {
+	int radix = 1 << BYTE_SIZE;
+	for (int i = len - 1; i >= 0; i--) {
+		numHead[i] = num % radix;
+		num /= radix;
+	}
+}
+
+void writeStr(char* dest, int len, char* src, int totLen) {
+	for (int i = 0; i < totLen; i++)
+		if (i < len)
+			dest[i] = src[i];
+		else 
+			dest[i] = 0;
+}

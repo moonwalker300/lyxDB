@@ -82,10 +82,98 @@ int RMManager::ChangeDataBase(char* dbName) {
 	return nowDataBaseHandle;
 }
 
-int RMManager::CreateTable(char *tableNum, TableInfo tableInfo) {
+int RMManager::CreateTable(/*char *tableNum,*/ TableInfo tableInfo) {
+	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
+		return -1;
+
 	char *buffer = new char[PAGE_SIZE];
-	fileManager->read(nowDataBaseHandle, 0, buffer);
+	fileManager->read(nowDataBaseHandle, 0, buffer); //0表示库页
 	//寻找空闲页
 	int TableHeadPageRank = FindFreePage();
-	int FirstDataPageRank = 
+	int FirstDataPageRank = FindFreePage();
+
+	int tableNum = charToNum(buffer, TABLE_NUM_LEN);
+	tableNum++;
+	writeNum(buffer, TABLE_NUM_LEN, tableNum);
+	//找到写table信息位置
+	char *tableInfoPlace = buffer + TABLE_NUM_LEN + (TABLE_HEAD_PLACE_LEN + TABLE_NAME_LEN) * (tableNum - 1);
+	//写库页
+	writeNum(tableInfoPlace, TABLE_HEAD_PLACE_LEN, TableHeadPageRank);
+	writeStr(tableInfoPlace + TABLE_HEAD_PLACE_LEN, TABLE_NAME_LEN, tableInfo.tableName, TABLE_NAME_LEN);
+	//写表头页
+	fileManager->write(nowDataBaseHandle, 0, buffer); //0表示库页
+
+	//写页号
+	writeNum(buffer, PAGE_RANK_LEN, TableHeadPageRank);
+	//写表名
+	writeStr(buffer + PAGE_RANK_LEN, TABLE_NAME_LEN, tableInfo.tableName, TABLE_NAME_LEN);
+	//写数据页首页
+	writeNum(buffer + PAGE_RANK_LEN + TABLE_NUM_LEN, PAGE_RANK_LEN, FirstDataPageRank);
+	//写列数
+	writeNum(buffer + PAGE_RANK_LEN + TABLE_NUM_LEN + PAGE_RANK_LEN, COLUMN_NUM_LEN, tableInfo.columnNum);
+	//写列信息
+	int offset = PAGE_RANK_LEN + TABLE_NUM_LEN + PAGE_RANK_LEN + COLUMN_NUM_LEN;
+	for (int i = 0; i < tableInfo.columnNum; i++) {
+		writeStr(buffer + offset, COLUMN_NAME_LEN, tableInfo.columns[i].columnName, COLUMN_NAME_LEN);
+		offset += COLUMN_NAME_LEN;
+		writeStr(buffer + offset, COLUMN_PROPERTY_LEN, tableInfo.columns[i].columnProperty, COLUMN_PROPERTY_LEN);
+		offset += COLUMN_PROPERTY_LEN;
+		writeStr(buffer + offset, COLUMN_KIND_LEN, tableInfo.columns[i].columnKind, COLUMN_KIND_LEN);
+		offset += COLUMN_KIND_LEN;
+		writeStr(buffer + offset, COLUMN_LEN_LEN, tableInfo.columns[i].columnLen, COLUMN_LEN_LEN);
+		offset += COLUMN_LEN_LEN;
+		writeStr(buffer + offset, INDEX_PLACE_LEN, tableInfo.columns[i].indexPlace, INDEX_PLACE_LEN);
+		offset += INDEX_PLACE_LEN;
+	}
+	fileManager->write(nowDataBaseHandle, TableHeadPageRank, buffer);
+
+	//写数据首页
+	offset = 0;
+	writeNum(buffer + offset, PAGE_RANK_LEN, FirstDataPageRank);
+	offset += PAGE_RANK_LEN;
+	writeNum(buffer + offset, PAGE_RANK_LEN, NOPAGE);
+	offset += PAGE_RANK_LEN;
+	writeNum(buffer + offset, PAGE_RANK_LEN, NOPAGE);
+	offset += PAGE_RANK_LEN;
+
+	int fixedColumnNum = 0;
+	int fixedColumnLen = 0;
+	for (int i = 0; i < tableInfo.columnNum; i++) {
+		int dataKind = charToNum(tableInfo.columns[i].columnProperty, COLUMN_PROPERTY_LEN);
+		if (dataKind != KIND_VARCHAR) {
+			fixedColumnNum++;
+			int dataLen = charToNum(tableInfo.columns[i].columnLen, COLUMN_LEN_LEN);
+			fixedColumnLen += dataLen;
+		} 
+	}
+	writeNum(buffer + offset, FIXEDCOLUMNNUM_LEN, fixedColumnNum);
+	offset += FIXEDCOLUMNNUM_LEN;
+	writeNum(buffer + offset, FIXEDCOLUMNLEN_LEN, fixedColumnLen);
+	offset += FIXEDCOLUMNLEN_LEN;
+	writeNum(buffer + offset, RECORDNUMLEN, 0); //一开始没有记录
+	offset += RECORDNUMLEN;
+
+	fileManager->write(nowDataBaseHandle, FirstDataPageRank, buffer);
+
+	delete[]buffer;
+	
+	return 0;
+}
+
+int RMManager::GetRecord(int pageRank, int slotRank, char* result, int& recordLen) {
+	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
+		return -1;
+
+	char* buffer = new char[PAGE_SIZE];
+	int ret = fileManager->read(nowDataBaseHandle, pageRank, buffer);
+	if (ret < 0) //没有这一页
+		return -2;
+
+	int offset = PAGE_RANK_LEN * 3 + FIXEDCOLUMNNUM_LEN + FIXEDCOLUMNLEN_LEN;
+	int recordNum = charToNum(buffer + offset, RECORDNUMLEN);
+	if (recordNum <= slotRank) //没有这条记录
+		return -3;
+
+
+	delete[]buffer;
 }
