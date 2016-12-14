@@ -212,7 +212,7 @@ int RMManager::GetRecord(int pageRank, int slotRank, char* result, int& recordLe
 	return 0;
 }
 
-int RMManager::InsertRecord(int pageRank, int& slotRank, char* record, int& recordLen) {
+int RMManager::InsertRecord(int pageRank, int& slotRank, char* record, int recordLen) {
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
 
@@ -325,6 +325,22 @@ int RMManager::DeleteRecord(int pageRank, int slotRank) {
 	writeNum(buffer + offset, RECORDSIZELEN, DELETEDSIZE);
 	//移动数据
 	moveStr(buffer, recordStartPlace, recordStartPlace + recordSize, recordPlace - recordStartPlace);
+	//更新其他槽的起始位置
+	offset = PAGE_RANK_LEN * 5 + FIXEDCOLUMNNUM_LEN + FIXEDCOLUMNLEN_LEN + VARCOLUMNNUM_LEN;
+	offset += FREEBOUNDLEN;
+	offset += RECORDNUMLEN;
+	for (int i = 0; i < recordNum; i++) {
+		//其他被移动槽的起始位置和大小
+		int recordPlace2 = charToNum(buffer + offset + i * (RECORDPLACELEN + RECORDSIZELEN), RECORDPLACELEN);
+		int recordSize2 = charToNum(buffer + offset + i * (RECORDPLACELEN + RECORDSIZELEN), RECORDPLACELEN);
+		if ((recordPlace2 != DELETEDPLACE) && (recordSize2 != DELETEDSIZE))
+			if (recordPlace2 < recordPlace + recordSize)
+				writeNum(buffer + offset + i * (RECORDPLACELEN + RECORDSIZELEN), RECORDPLACELEN, recordPlace2 + recordSize);
+	}
+
+	//更新空闲右侧边界
+	offset = PAGE_RANK_LEN * 5 + FIXEDCOLUMNNUM_LEN + FIXEDCOLUMNLEN_LEN + VARCOLUMNNUM_LEN;
+	writeNum(buffer + offset, FREEBOUNDLEN, recordStartPlace + recordSize);
 
 	int freeStart = (PAGE_RANK_LEN * 5 + FIXEDCOLUMNNUM_LEN + FIXEDCOLUMNLEN_LEN + VARCOLUMNNUM_LEN + FREEBOUNDLEN + RECORDNUMLEN + recordNum * (RECORDPLACELEN + RECORDSIZELEN));
 	int remain = recordStartPlace + recordSize - freeStart;
@@ -354,6 +370,71 @@ int RMManager::GetFreeSpace(int pageRank) {
 
 	int freeLeftBound = offset + recordNum * (RECORDPLACELEN + RECORDSIZELEN);
 
+	delete[]buffer;
 	return freeRightBound - freeLeftBound;
 }
 
+int RMManager::UpdateRecord(int pageRank, int slotRank, char* record, int recordLen) {
+	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
+		return -1;
+
+	char* buffer = new char[PAGE_SIZE];
+	int ret = fileManager->read(nowDataBaseHandle, pageRank, buffer);
+	if (ret < 0) { //没有这一页
+		delete[]buffer;
+		return -2;
+	}
+
+	int offset = PAGE_RANK_LEN * 5 + FIXEDCOLUMNLEN_LEN + FIXEDCOLUMNNUM_LEN + VARCOLUMNNUM_LEN;
+	int recordStartPlace = charToNum(buffer + offset, FREEBOUNDLEN);
+	offset += FREEBOUNDLEN;
+	int recordNum = charToNum(buffer + offset, RECORDNUMLEN);
+	offset += RECORDNUMLEN;
+	int freeLeftBound = offset + recordNum * (RECORDPLACELEN + RECORDSIZELEN);
+
+	if (recordNum <= slotRank) {
+		delete[]buffer;
+		return -3;
+	}
+
+	offset += slotRank * (RECORDPLACELEN + RECORDSIZELEN);
+	int recordPlace = charToNum(buffer + offset, RECORDPLACELEN);
+	offset += RECORDPLACELEN;
+	int recordSize = charToNum(buffer + offset, RECORDSIZELEN); //原长度
+	offset += RECORDSIZELEN;
+
+	if ((recordPlace == DELETEDPLACE) || (recordSize == DELETEDSIZE)) {
+		delete[]buffer;
+		return -3;
+	}
+
+	if (recordStartPlace - freeLeftBound > recordLen - recordSize) {
+		//移动其他数据
+		moveStr(buffer, recordStartPlace, recordStartPlace - (recordLen - recordSize), recordPlace - recordStartPlace);
+		//写入新数据
+		writeStr(buffer + recordPlace + recordSize - recordLen, recordLen, record, recordLen);
+		//更新位置
+		offset = PAGE_RANK_LEN * 5 + FIXEDCOLUMNNUM_LEN + FIXEDCOLUMNLEN_LEN + VARCOLUMNNUM_LEN;
+		offset += FREEBOUNDLEN;
+		offset += RECORDNUMLEN;
+		for (int i = 0; i < recordNum; i++) {
+			//其他被移动槽的起始位置和大小
+			int recordPlace2 = charToNum(buffer + offset + i * (RECORDPLACELEN + RECORDSIZELEN), RECORDPLACELEN);
+			int recordSize2 = charToNum(buffer + offset + i * (RECORDPLACELEN + RECORDSIZELEN), RECORDPLACELEN);
+			if ((recordPlace2 != DELETEDPLACE) && (recordSize2 != DELETEDSIZE))
+				if (recordPlace2 < recordPlace + recordSize)
+					writeNum(buffer + offset + i * (RECORDPLACELEN + RECORDSIZELEN), RECORDPLACELEN, recordPlace2 - (recordLen - recordSize));
+		}
+		writeNum(buffer + offset + slotRank * (RECORDPLACELEN + RECORDSIZELEN), RECORDPLACELEN, recordPlace - (recordLen - recordSize));
+		writeNum(buffer + offset + slotRank * (RECORDPLACELEN + RECORDSIZELEN) + RECORDPLACELEN, RECORDNUMLEN, recordLen);
+		fileManager->write(nowDataBaseHandle, pageRank, buffer);
+
+		int remainSpace = recordStartPlace - freeLeftBound - (recordLen - recordSize);
+		delete[]buffer;
+		return remainSpace; //返回剩余空间
+	}
+	else{
+		delete[]buffer;
+		return -4; //页的空余长度不够了
+	}
+}
