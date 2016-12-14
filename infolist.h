@@ -29,7 +29,13 @@ const int PRIMARYPLACE = 2;
 //สýพÝาณ
 const int FIXEDCOLUMNNUM_LEN = 2;
 const int FIXEDCOLUMNLEN_LEN = 2;
+const int VARCOLUMNNUM_LEN = 2;
 const int RECORDNUMLEN = 4;
+const int RECORDPLACELEN = 2;
+const int RECORDSIZELEN = 2;
+const int DELETEDSIZE = 65535;
+const int DELETEDPLACE = 65535;
+const int FREEBOUNDLEN = 2;
 struct ColumnInfo {
 	char columnName[COLUMN_NAME_LEN];
 	char columnProperty[COLUMN_PROPERTY_LEN];

@@ -45,3 +45,16 @@ void writeStr(char* dest, int len, char* src, int totLen) {
 		else 
 			dest[i] = 0;
 }
+
+void moveStr(char* str, int from, int to, int len) {
+	if (from == to)
+		return;
+	if (from < to) {
+		for (int i = len - 1; i >= 0; i--)
+			str[to + i] = str[from + i];
+	}
+	else {
+		for (int i = 0; i < len; i++)
+			str[to + i] = str[from + i];
+	}
+}
