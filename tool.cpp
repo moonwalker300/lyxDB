@@ -1,5 +1,5 @@
 #include "tool.h"
-
+#include "infolist.h"
 char* ZeroFill(char *src, int oriLen, int goalLen) {
 	char* ret = new char[goalLen];
 	for (int i = 0; i < goalLen; i++)
@@ -57,4 +57,38 @@ void moveStr(char* str, int from, int to, int len) {
 		for (int i = 0; i < len; i++)
 			str[to + i] = str[from + i];
 	}
+}
+
+int compareStr(char* str1, char* str2, int len) {
+	for (int i = 0; i < len; i++)
+		if (str1[i] > str2[i])
+			return 1;
+		else if (str1[i] < str2[i])
+			return -1;
+		else if (str1[i] == 0)
+			return 0;
+	return 0;
+}
+
+int compareIndex(char* index1, char* index2, int len) {
+	if ((index1[0] == 1) && (index2[0] == 1))
+		return 0;
+	else if ((index1[0] == 1) && (index2[0] == 0))
+		return -1;
+	else if ((index1[0] == 0) && (index2[0] == 1))
+		return 1;
+	else
+		return compareStr(index1, index2, len);
+}
+
+int compareIndexAndID(char* index1, char* index2, int len, int id1, int id2) {
+	int comp1 = compareIndex(index1, index2, len - IDLEN);
+	if (comp1 != 0)
+		return comp1;
+	else if (id1 > id2)
+		return 1;
+	else if (id1 < id2)
+		return -1;
+	else
+		return 0;
 }

@@ -107,6 +107,7 @@ private:
 		}
 		in.seekg(pageNumber * 4096, fstream::beg);
 		in.read(buffer, 4096);
+		in.close();
 		return 0;
 	}
 	int64_t writeFile(int64_t pageNumber, char* buffer) {
@@ -124,6 +125,7 @@ private:
 		delete[]zeroPad;
 		out.seekp(pageNumber * 4096, fstream::beg);
 		out.write(buffer, 4096);
+		out.close();
 		return 0;
 	}
 	int64_t getLocation(int64_t index) {
@@ -152,6 +154,23 @@ FileManager::~FileManager() {
 		close(it->first);
 	}
 }
+
+bool FileManager::ifexist(std::string fileName) {
+	for (auto it = fileMap.begin(); it != fileMap.end(); ++it) {
+		if (it->second.fileName == fileName) {
+			return true;
+		}
+	}
+
+	ifstream fin("hello.txt");
+	if (!fin)
+		return false;
+	else {
+		fin.close();
+		return true;
+	}
+}
+
 int64_t FileManager::open(std::string fileName) {
 	for (auto it = fileMap.begin(); it != fileMap.end(); ++it) {
 		if (it->second.fileName == fileName) {

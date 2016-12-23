@@ -12,11 +12,10 @@ struct RID {
 
 class RMManager {
 private:
-	std::vector<std::string> dbNames;
 	FileManager *fileManager;
 	int64_t nowDataBaseHandle; //现在使用的数据库的int handle, 0表示没有
-	string nowDataBaseName;
-	int nowDataBasePageNum;
+	std::string nowDataBaseName;
+//	int nowDataBasePageNum;
 	int FindFreePage();
 public:
 	RMManager(FileManager *fm);

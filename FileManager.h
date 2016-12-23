@@ -7,6 +7,8 @@ class FileManager {
 public:
 	FileManager();
 	~FileManager();
+	//判断某个文件是否存在
+	bool ifexist(std::string fileName);
 	//打开一个文件，返回这个文件的描述符，无法打开时返回-1
 	int64_t open(std::string fileName);
 	//关闭文件描述符对应的文件

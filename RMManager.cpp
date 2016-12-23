@@ -7,10 +7,12 @@ int RMManager::FindFreePage() {
 	int nowGAM = 1;
 	int offset;
 	bool ifFind = false;
-	char *buffer = new char[PAGE_SIZE];
+	int totPageNum;
+	char buffer[PAGE_SIZE];
 	while (true) {
-		if (nowGAM >= nowDataBasePageNum) { //扩展文件
-			fileManager->alloc(nowDataBaseHandle, nowGAM - nowDataBasePageNum + 1); //填充空白
+		totPageNum = fileManager->size(nowDataBaseHandle);
+		if (nowGAM >= totPageNum) { //扩展文件
+			fileManager->alloc(nowDataBaseHandle, nowGAM - totPageNum + 1); //填充空白
 			char *zeroPAD = AllZeroFill(PAGE_SIZE);
 			fileManager->write(nowDataBaseHandle, nowGAM, zeroPAD);
 			delete[]zeroPAD;
@@ -30,8 +32,9 @@ int RMManager::FindFreePage() {
 		nowGAM += PAGE_SIZE;
 	}
 
-	if (nowGAM + offset >= nowDataBasePageNum) 
-		fileManager->alloc(nowDataBaseHandle, nowGAM + offset - nowDataBasePageNum + 1); //扩展文件
+	totPageNum = fileManager->size(nowDataBaseHandle);
+	if (nowGAM + offset >= totPageNum) 
+		fileManager->alloc(nowDataBaseHandle, nowGAM + offset - totPageNum + 1); //扩展文件
 
 	//标记这一页已被使用
 	char mask = (1 << (BYTE_SIZE - 1 - offset % BYTE_SIZE));
@@ -49,10 +52,9 @@ RMManager::RMManager(FileManager *fm) {
 
 int RMManager::CreateDataBase(char* dbName) {
 	string dataBaseName(dbName);
-	for (int i = 0; i < dbNames.size(); i++)
-		if (dbNames[i] == dataBaseName)
-			return -2;
 	dataBaseName.append(DBSuffixName); //添加后缀名
+	if (fileManager->ifexist(dataBaseName))
+		return -2; //已经存在
 	int64_t fileHandle = fileManager->open(dataBaseName);
 	char* write = AllZeroFill(PAGE_SIZE); //全0页
 	int64_t ret = fileManager->write(fileHandle, 0, write);
@@ -60,25 +62,18 @@ int RMManager::CreateDataBase(char* dbName) {
 	fileManager->close(fileHandle);
 	if (ret < 0)
 		return -1;
-	else {
-		dbNames.push_back(string(dbName));
+	else 
 		return 0;
-	}
 }
 
 int RMManager::ChangeDataBase(char* dbName) {
 	string dataBaseName(dbName);
-	int flag = 0;
-	for (int i = 0; i < dbNames.size(); i++)
-		if (dataBaseName == dbNames[i]) {
-			flag = 1;
-			break;
-		}
-	if (flag == 0) //找不到数据库
-		return -1;
 	dataBaseName.append(DBSuffixName);
+	if (!fileManager->ifexist(dataBaseName))
+		return -1;
 	nowDataBaseHandle = fileManager->open(dataBaseName);
-	nowDataBasePageNum = fileManager->size(nowDataBaseHandle);
+	nowDataBaseName = string(dbName);
+//	nowDataBasePageNum = fileManager->size(nowDataBaseHandle);
 	return nowDataBaseHandle;
 }
 
@@ -86,8 +81,11 @@ int RMManager::CreateTable(/*char *tableNum,*/ TableInfo tableInfo) {
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
 
-	char *buffer = new char[PAGE_SIZE];
+	char buffer[PAGE_SIZE];
 	fileManager->read(nowDataBaseHandle, 0, buffer); //0表示库页
+
+	//To do 没有加重复表的判断
+
 	//寻找空闲页
 	int TableHeadPageRank = FindFreePage();
 	int FirstDataPageRank = FindFreePage();
@@ -95,11 +93,12 @@ int RMManager::CreateTable(/*char *tableNum,*/ TableInfo tableInfo) {
 	int tableNum = charToNum(buffer, TABLE_NUM_LEN);
 	tableNum++;
 	writeNum(buffer, TABLE_NUM_LEN, tableNum);
+
 	//找到写table信息位置
 	char *tableInfoPlace = buffer + TABLE_NUM_LEN + (TABLE_HEAD_PLACE_LEN + TABLE_NAME_LEN) * (tableNum - 1);
 	//写库页
 	writeNum(tableInfoPlace, TABLE_HEAD_PLACE_LEN, TableHeadPageRank);
-	writeStr(tableInfoPlace + TABLE_HEAD_PLACE_LEN, TABLE_NAME_LEN, tableInfo.tableName, TABLE_NAME_LEN);
+	writeStr(tableInfoPlace + TABLE_HEAD_PLACE_LEN, strlen(tableInfo.tableName), tableInfo.tableName, TABLE_NAME_LEN);
 	//写表头页
 	fileManager->write(nowDataBaseHandle, 0, buffer); //0表示库页
 
@@ -173,7 +172,7 @@ int RMManager::CreateTable(/*char *tableNum,*/ TableInfo tableInfo) {
 
 	fileManager->write(nowDataBaseHandle, FirstDataPageRank, buffer);
 
-	delete[]buffer;
+//	delete[]buffer;
 	
 	return 0;
 }
@@ -182,10 +181,10 @@ int RMManager::GetRecord(int pageRank, int slotRank, char* result, int& recordLe
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
 
-	char* buffer = new char[PAGE_SIZE];
+	char buffer[PAGE_SIZE];
 	int ret = fileManager->read(nowDataBaseHandle, pageRank, buffer);
 	if (ret < 0) { //没有这一页
-		delete[]buffer;
+//		delete[]buffer;
 		return -2;
 	}
 
@@ -193,7 +192,7 @@ int RMManager::GetRecord(int pageRank, int slotRank, char* result, int& recordLe
 	int recordNum = charToNum(buffer + offset, RECORDNUMLEN);
 	offset += RECORDNUMLEN;
 	if (recordNum <= slotRank) { //没有这条记录
-		delete[]buffer;
+//		delete[]buffer;
 		return -3;
 	}
 	offset += (RECORDSIZELEN + RECORDPLACELEN) * slotRank;
@@ -201,14 +200,14 @@ int RMManager::GetRecord(int pageRank, int slotRank, char* result, int& recordLe
 	int recordSize = charToNum(buffer + offset + RECORDPLACELEN, RECORDSIZELEN);
 	
 	if ((recordPlace = DELETEDPLACE) || (recordPlace == DELETEDSIZE)) {
-		delete[]buffer;
+//		delete[]buffer;
 		return -4; //该槽已被删除了
 	}
 
 	writeStr(buffer + recordPlace, recordSize, result, recordSize);
 	recordLen = recordSize;
 
-	delete[]buffer;
+//	delete[]buffer;
 	return 0;
 }
 
@@ -216,10 +215,10 @@ int RMManager::InsertRecord(int pageRank, int& slotRank, char* record, int recor
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
 
-	char* buffer = new char[PAGE_SIZE];
+	char buffer[PAGE_SIZE];
 	int ret = fileManager->read(nowDataBaseHandle, pageRank, buffer);
 	if (ret < 0) { //没有这一页
-		delete[]buffer;
+//		delete[]buffer;
 		return -2;
 	}
 
@@ -241,7 +240,7 @@ int RMManager::InsertRecord(int pageRank, int& slotRank, char* record, int recor
 	if (slotRank == recordNum) {
 		int freeLeftBound = offset + (slotRank + 1) * (RECORDPLACELEN + RECORDSIZELEN);
 		if (freeRightBound - freeLeftBound < recordLen) {
-			delete[]buffer;
+//			delete[]buffer;
 			return -3; //没有空余空间了
 		}
 		offset += slotRank * (RECORDPLACELEN + RECORDSIZELEN);
@@ -265,7 +264,7 @@ int RMManager::InsertRecord(int pageRank, int& slotRank, char* record, int recor
 	else{
 		int freeLeftBound = offset + recordNum * (RECORDPLACELEN + RECORDSIZELEN);
 		if (freeRightBound - freeLeftBound < recordLen) {
-			delete[]buffer;
+//			delete[]buffer;
 			return -3; //没有空余空间了
 		}
 		offset += slotRank * (RECORDPLACELEN + RECORDSIZELEN);
@@ -285,7 +284,7 @@ int RMManager::InsertRecord(int pageRank, int& slotRank, char* record, int recor
 		
 		remainSpace = recordStartPlace - freeLeftBound;
 	}
-	delete[]buffer;
+//	delete[]buffer;
 	return remainSpace; //返回剩余空间
 }
 
@@ -293,10 +292,10 @@ int RMManager::DeleteRecord(int pageRank, int slotRank) {
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
 	
-	char* buffer = new char[PAGE_SIZE];
+	char buffer[PAGE_SIZE];
 	int ret = fileManager->read(nowDataBaseHandle, pageRank, buffer);
 	if (ret < 0) { //没有这一页
-		delete[]buffer;
+//		delete[]buffer;
 		return -2;
 	}
 	int offset = PAGE_RANK_LEN * 5 + FIXEDCOLUMNNUM_LEN + FIXEDCOLUMNLEN_LEN + VARCOLUMNNUM_LEN;
@@ -304,7 +303,7 @@ int RMManager::DeleteRecord(int pageRank, int slotRank) {
 	offset += FREEBOUNDLEN;
 	int recordNum = charToNum(buffer + offset, RECORDNUMLEN);
 	if (recordNum <= slotRank) {
-		delete[]buffer;
+//		delete[]buffer;
 		return -3;
 	}
 
@@ -347,7 +346,7 @@ int RMManager::DeleteRecord(int pageRank, int slotRank) {
 
 	fileManager->write(nowDataBaseHandle, pageRank, buffer);
 
-	delete[]buffer;
+//	delete[]buffer;
 	return remain;
 }
 
@@ -355,10 +354,10 @@ int RMManager::GetFreeSpace(int pageRank) {
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
 
-	char* buffer = new char[PAGE_SIZE];
+	char buffer[PAGE_SIZE];
 	int ret = fileManager->read(nowDataBaseHandle, pageRank, buffer);
 	if (ret < 0) { //没有这一页
-		delete[]buffer;
+//		delete[]buffer;
 		return -2;
 	}
 
@@ -370,7 +369,7 @@ int RMManager::GetFreeSpace(int pageRank) {
 
 	int freeLeftBound = offset + recordNum * (RECORDPLACELEN + RECORDSIZELEN);
 
-	delete[]buffer;
+//	delete[]buffer;
 	return freeRightBound - freeLeftBound;
 }
 
@@ -378,10 +377,10 @@ int RMManager::UpdateRecord(int pageRank, int slotRank, char* record, int record
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
 
-	char* buffer = new char[PAGE_SIZE];
+	char buffer[PAGE_SIZE];
 	int ret = fileManager->read(nowDataBaseHandle, pageRank, buffer);
 	if (ret < 0) { //没有这一页
-		delete[]buffer;
+//		delete[]buffer;
 		return -2;
 	}
 
@@ -393,7 +392,7 @@ int RMManager::UpdateRecord(int pageRank, int slotRank, char* record, int record
 	int freeLeftBound = offset + recordNum * (RECORDPLACELEN + RECORDSIZELEN);
 
 	if (recordNum <= slotRank) {
-		delete[]buffer;
+//		delete[]buffer;
 		return -3;
 	}
 
@@ -404,7 +403,7 @@ int RMManager::UpdateRecord(int pageRank, int slotRank, char* record, int record
 	offset += RECORDSIZELEN;
 
 	if ((recordPlace == DELETEDPLACE) || (recordSize == DELETEDSIZE)) {
-		delete[]buffer;
+//		delete[]buffer;
 		return -3;
 	}
 
@@ -430,11 +429,16 @@ int RMManager::UpdateRecord(int pageRank, int slotRank, char* record, int record
 		fileManager->write(nowDataBaseHandle, pageRank, buffer);
 
 		int remainSpace = recordStartPlace - freeLeftBound - (recordLen - recordSize);
-		delete[]buffer;
+//		delete[]buffer;
 		return remainSpace; //返回剩余空间
 	}
 	else{
-		delete[]buffer;
+//		delete[]buffer;
 		return -4; //页的空余长度不够了
 	}
 }
+
+
+
+
+ 

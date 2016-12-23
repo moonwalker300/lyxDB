@@ -30,6 +30,9 @@
     <ClInclude Include="tool.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="IXManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FileManager.cpp">
@@ -39,6 +42,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="tool.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="IXManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
