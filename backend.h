@@ -5,7 +5,11 @@
 class BackEnd {
 	IXManager* im;
 	RMManager* rm;
-	FileManager
+	FileManager* fm;
+public:
+	BackEnd() {}
+	void createDataBase(std::string& name);
+	void InsertRecord()
 };
 
 #endif

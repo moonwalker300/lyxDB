@@ -145,7 +145,7 @@ int IXManager::FindIndexRootPage(char* tableName, char* columnName) {
 		int tableHeadPlace = charToNum(buffer + offset, TABLE_HEAD_PLACE_LEN);
 		offset += TABLE_HEAD_PLACE_LEN;
 		writeStr(tmpName, TABLE_NAME_LEN, buffer + offset, TABLE_NAME_LEN);
-		if (compareStr(tmpName, columnName, TABLE_NAME_LEN) == 0) {
+		if (compareStr(tmpName, tableName, TABLE_NAME_LEN) == 0) {
 			headPlace = tableHeadPlace;
 			break;
 		}

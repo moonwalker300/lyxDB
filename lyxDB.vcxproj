@@ -87,6 +87,7 @@
     <ClInclude Include="tool.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BackEnd.cpp" />
     <ClCompile Include="FileManager.cpp" />
     <ClCompile Include="IXManager.cpp" />
     <ClCompile Include="RMManager.cpp" />

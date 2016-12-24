@@ -27,7 +27,7 @@ public:
 	//返回0表示删除成功，返回-1表示没有这项
 	int UpDateRecordAndIX(int rootPage, char* index, int indexLen, int dataKind, int pageRank, int slotRank, int recordID);
 
-
+	 
 };
 
 #endif

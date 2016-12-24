@@ -50,5 +50,8 @@
     <ClCompile Include="IXManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="BackEnd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
