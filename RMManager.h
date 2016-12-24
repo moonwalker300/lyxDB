@@ -6,10 +6,6 @@
 #include <vector>
 const char DBSuffixName[] = ".lyx";
 //表示一条记录，页号，槽号
-struct RID {
-	int pageRank, slotRank;
-};
-
 class RMManager {
 private:
 	FileManager *fileManager;

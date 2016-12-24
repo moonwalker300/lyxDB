@@ -38,6 +38,11 @@ void writeNum(char* numHead, int len, int num) {
 	}
 }
 
+void writeStr(char* dest, int len, char* src) {
+	for (int i = 0; i < len; i++)
+		dest[i] = src[i];
+}
+
 void writeStr(char* dest, int len, char* src, int totLen) {
 	for (int i = 0; i < totLen; i++)
 		if (i < len)

@@ -115,6 +115,9 @@ int RMManager::CreateTable(/*char *tableNum,*/ TableInfo tableInfo) {
 	//写第一有空页
 	writeNum(buffer + offset, PAGE_RANK_LEN, FirstDataPageRank);
 	offset += PAGE_RANK_LEN;
+	//写id上限
+	writeNum(buffer + offset, IDLEN, 0);
+	offset += IDLEN;
 	//写列数
 	writeNum(buffer + offset, COLUMN_NUM_LEN, tableInfo.columnNum);
 	offset += COLUMN_NUM_LEN;
