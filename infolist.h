@@ -36,13 +36,14 @@ const int NOTPRIMARY = 1 - ISPRIMARY;
 //数据页
 const int FIXEDCOLUMNNUM_LEN = 2;
 const int FIXEDCOLUMNLEN_LEN = 2;
-const int VARCOLUMNNUM_LEN = 2;
-const int RECORDNUMLEN = 4;
+const int RECORDLENLEN = 4;
+const int FIRSTSLOTLEN = 4; //(第一)有空槽号长度
 const int RECORDPLACELEN = 2;
 const int RECORDSIZELEN = 2;
 const int DELETEDSIZE = 65535;
 const int DELETEDPLACE = 65535;
-const int FREEBOUNDLEN = 2;
+const int NOSLOT = 0;
+//const int FREEBOUNDLEN = 2;
 //索引页
 const int ISROOTLEN = 4;
 const int ISROOT = 1;
@@ -71,7 +72,7 @@ struct ColumnInfo {
 	char indexPlace[INDEX_PLACE_LEN];
 };
 
-struct TableInfo {
+struct TableInfomation {
 	char tableName[TABLE_NAME_LEN];
 	int columnNum;
 	ColumnInfo columns[MAX_COLUMN_NUM];

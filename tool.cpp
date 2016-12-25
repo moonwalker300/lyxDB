@@ -43,7 +43,7 @@ void writeStr(char* dest, int len, char* src) {
 		dest[i] = src[i];
 }
 
-void writeStr(char* dest, int len, char* src, int totLen) {
+void writeStr(char* dest, int len, const char* src, int totLen) {
 	for (int i = 0; i < totLen; i++)
 		if (i < len)
 			dest[i] = src[i];
@@ -64,7 +64,7 @@ void moveStr(char* str, int from, int to, int len) {
 	}
 }
 
-int compareStr(char* str1, char* str2, int len) {
+int compareStr(const char* str1, const char* str2, int len) {
 	for (int i = 0; i < len; i++)
 		if (str1[i] > str2[i])
 			return 1;
@@ -96,4 +96,16 @@ int compareIndexAndID(char* index1, char* index2, int len, int id1, int id2) {
 		return -1;
 	else
 		return 0;
+}
+
+int changeToFreeSlot(int n) {
+	return (1 << 30) + n;
+}
+
+bool isFreeSlot(int n) {
+	return n >= (1 << 30);
+}
+
+int getSlot(int n) {
+	return n - (1 << 30);
 }

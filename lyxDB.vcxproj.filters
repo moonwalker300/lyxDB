@@ -36,6 +36,9 @@
     <ClInclude Include="backend.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Meta.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FileManager.cpp">
@@ -50,7 +53,7 @@
     <ClCompile Include="IXManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="BackEnd.cpp">
+    <ClCompile Include="backend.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

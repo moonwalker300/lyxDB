@@ -28,7 +28,7 @@ int IXManager::FindFreePage() {
 		}
 		if (ifFind)
 			break;
-		nowGAM += PAGE_SIZE;
+		nowGAM += (PAGE_SIZE * BYTE_SIZE);
 	}
 
 	totPageNum = fileManager->size(nowDataBaseHandle);
@@ -43,47 +43,26 @@ int IXManager::FindFreePage() {
 	return nowGAM + offset;
 }
 
-int IXManager::CreateIndex(char* tableName, char* columnName) {
+int IXManager::CreateIndex(int tableRank, int columnRank) {
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
-
+	
 	char buffer[PAGE_SIZE];
 	fileManager->read(nowDataBaseHandle, 0, buffer); //0表示库页
-	int tableNum = charToNum(buffer, TABLE_NUM_LEN);
 	int offset = TABLE_NUM_LEN;
-	char name[TABLE_NAME_LEN];
-	int tableHeadPlace = -1; //查找的表位置
-	for (int i = 0; i < tableNum; i++) {
-		int tableHead = charToNum(buffer + offset, TABLE_HEAD_PLACE_LEN);
-		writeStr(name, TABLE_NAME_LEN, buffer + offset);
-		if (compareStr(name, tableName, TABLE_NAME_LEN) == 0) {
-			tableHeadPlace = tableHead;
-			break;
-		}
-	}
-	if (tableHeadPlace == -1)
-		return -2; //没有这个表
+	int tableHeadPlace = charToNum(buffer + offset + (TABLE_HEAD_PLACE_LEN + TABLE_NAME_LEN) * tableRank, TABLE_HEAD_PLACE_LEN); //查找的表位置
 
 	fileManager->read(nowDataBaseHandle, tableHeadPlace, buffer);
 	offset = PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN * 2;
 	int columnNum = charToNum(buffer + offset, COLUMN_NUM_LEN);
+	offset += COLUMN_NUM_LEN;
 	int totColumnInfoLen = COLUMN_NAME_LEN + COLUMN_PROPERTY_LEN + COLUMN_KIND_LEN + COLUMN_LEN_LEN + INDEX_PLACE_LEN;
-	
-	int columnRank = -1;
+	offset += totColumnInfoLen * columnRank;
 	int indexKind = 0;
 	int indexLen = 0;
-	for (int i = 0; i < columnNum; i++) {
-		int compareResult = compareStr(columnName, buffer + offset, COLUMN_NAME_LEN);
-		if (compareResult == 0) {
-			columnRank = i;
-			indexKind = charToNum(buffer + offset + COLUMN_NAME_LEN + COLUMN_PROPERTY_LEN, COLUMN_KIND_LEN);
-			indexLen = charToNum(buffer + offset + COLUMN_NAME_LEN + COLUMN_PROPERTY_LEN + COLUMN_KIND_LEN, COLUMN_LEN_LEN);
-			break;
-		}
-		offset += totColumnInfoLen;
-	}
-	if (columnRank == -1)
-		return -3; //没有这一列
+	
+	indexKind = charToNum(buffer + offset + COLUMN_NAME_LEN + COLUMN_PROPERTY_LEN, COLUMN_KIND_LEN);
+	indexLen = charToNum(buffer + offset + COLUMN_NAME_LEN + COLUMN_PROPERTY_LEN + COLUMN_KIND_LEN, COLUMN_LEN_LEN);	
 
 	if (*(buffer + offset + COLUMN_NAME_LEN + INDEXPLACE) == 1)
 		return -4; //原来就有索引
@@ -101,14 +80,17 @@ int IXManager::CreateIndex(char* tableName, char* columnName) {
 	//这是根
 	writeNum(buffer + offset, ISROOTLEN, ISROOT);
 	offset += ISROOTLEN;
-	int n = (PAGE_SIZE - 32) / (indexLen + IDLEN + NOTLEAFPAGELEN) - 1;
+	int n = (PAGE_SIZE - 32) / (1 + indexLen + IDLEN + NOTLEAFPAGELEN) - 1; //加上NULL标志的长度
 	writeNum(buffer + offset, NLEN, n);
 	offset += NLEN;
 	writeNum(buffer + offset, INDEXNUMLEN, 0);
 	offset += INDEXNUMLEN;
 	writeNum(buffer + offset, INDEXKINDLEN, indexKind);
 	offset += INDEXKINDLEN;
-	writeNum(buffer + offset, INDEXLENLEN, indexLen);
+	writeNum(buffer + offset, INDEXLENLEN, (indexLen + 1)); //加上NULL标志长度
+	offset += INDEXLENLEN;
+	writeNum(buffer + offset, LEAFNEXTLEN, NOPAGE);
+	fileManager->write(nowDataBaseHandle, indexRoot, buffer);
 	//将所有记录全部插入索引中 To Do
 }
 
@@ -118,7 +100,7 @@ IXManager::IXManager(FileManager *fm) {
 	this->nowDataBaseName = "";
 }
 
-int IXManager::ChangeDataBase(char* dbName) {
+int IXManager::ChangeDataBase(const char* dbName) {
 	string dataBaseName(dbName);
 	dataBaseName.append(DBSuffixName);
 	if (!fileManager->ifexist(dataBaseName))
@@ -211,7 +193,7 @@ int IXManager::SearchIndex(int rootPage, char* index, int indexLen, int dataKind
 		int findNode = indexNum; //去向第几个儿子指针
 		for (int i = 0; i < indexNum; i++) {
 			writeStr(tmpIndex, indexLen, buffer + offset + i * (NOTLEAFPAGELEN + indexLen + IDLEN) + NOTLEAFPAGELEN, indexLen);
-			if (compareIndex(tmpIndex, index, indexLen) > 0) {
+			if (compareIndex(tmpIndex, index, indexLen) >= 0) {
 				findNode = i;
 				break;
 			}
@@ -220,9 +202,9 @@ int IXManager::SearchIndex(int rootPage, char* index, int indexLen, int dataKind
 	}
 
 	int retLeafPage = -1, retLeafRank = -1;
-	int Flag = 0;
+	int Flag = 0, Flag2 = 0;
 	while (true) {
-		if ((Flag == 1) || (nowPage == 0)) 
+		if ((Flag == 1) || (nowPage == NOPAGE)) 
 			break;
 		
 		fileManager->read(nowDataBaseHandle, nowPage, buffer);
@@ -235,21 +217,23 @@ int IXManager::SearchIndex(int rootPage, char* index, int indexLen, int dataKind
 
 		int findNode = indexNum; //去向第几个儿子指针
 		for (int i = 0; i < indexNum; i++) {
-			writeStr(tmpIndex, indexLen, buffer + offset + i * (LEAFPAGELEN + LEAFSLOTLEN + indexLen + IDLEN) + LEAFPAGELEN + LEAFSLOTLEN, indexLen);
-			int compareResult = compareIndex(tmpIndex, index, indexLen);
-			if (compareResult > 0) {
-				if (findBigger) {
-					retLeafPage = nowPage;
-					retLeafRank = i;
+			if (Flag2 == 0) {
+				writeStr(tmpIndex, indexLen, buffer + offset + i * (LEAFPAGELEN + LEAFSLOTLEN + indexLen + IDLEN) + LEAFPAGELEN + LEAFSLOTLEN, indexLen);
+				int compareResult = compareIndex(tmpIndex, index, indexLen);
+				if (compareResult > 0) {
+					Flag2 = 1;
 				}
-				Flag = 1;
-				break;
+				else if (compareResult == 0){
+					if (findBigger == 0) {
+						Flag2 = 1;
+					}
+				}
 			}
-			else if (compareResult == 0){
-				if (!findBigger) {
+			if (Flag2 == 1) {
+				if (charToNum(buffer + offset + i * (LEAFPAGELEN + LEAFSLOTLEN + indexLen + IDLEN), LEAFPAGELEN) != NORECORD) {
+					Flag = 0;
 					retLeafPage = nowPage;
 					retLeafRank = i;
-					Flag = 1;
 					break;
 				}
 			}
@@ -258,8 +242,11 @@ int IXManager::SearchIndex(int rootPage, char* index, int indexLen, int dataKind
 			nowPage = charToNum(buffer + offset + indexNum * (LEAFPAGELEN + LEAFSLOTLEN + indexLen + IDLEN) + LEAFPAGELEN, LEAFPAGELEN);
 	}
 	
-	if ((nowPage == 0) || (retLeafPage == -1))
+	if ((nowPage == 0) || (retLeafPage == -1)) {
+		leafPage = -1;
+		indexRank = -1;
 		return -2;
+	}
 	else {
 		leafPage = retLeafPage;
 		indexRank = retLeafRank;
@@ -822,4 +809,54 @@ int IXManager::UpDateRecordAndIX(int rootPage, char* index, int indexLen, int da
 		fileManager->write(nowDataBaseHandle, nowPage, buffer);
 		return 0;
 	}
+}
+
+void IXManager::freePage(vector<int>& pageRanks) {
+	int nowGAM = -1;
+	char buffer[PAGE_SIZE];
+	//可以排序或许可以更快
+	for (int i = 0; i < pageRanks.size(); i++) {
+		int GAMPage = ((pageRanks[i] - 1) / (PAGE_SIZE * BYTE_SIZE)) * (PAGE_SIZE * BYTE_SIZE) + 1;
+		int offset = 0;
+		if (GAMPage != nowGAM) {
+			if (nowGAM > 0)
+				fileManager->write(nowDataBaseHandle, nowGAM, buffer);
+			nowGAM = GAMPage;
+			fileManager->read(nowDataBaseHandle, nowGAM, buffer);
+		}
+		offset = pageRanks[i] - nowGAM;
+		buffer[offset / BYTE_SIZE] |= 1 << (BYTE_SIZE - 1 - offset % BYTE_SIZE);
+	}
+	if (nowGAM > 0)
+		fileManager->write(nowDataBaseHandle, nowGAM, buffer);
+}
+
+void IXManager::countPage(int nowPage, vector<int>& pages) {
+	pages.push_back(nowPage);
+	char buffer[PAGE_SIZE];
+	int isLeaf = 0;
+	int indexLen = 0;
+	int indexNum = 0;
+	fileManager->read(nowDataBaseHandle, nowPage, buffer);
+	isLeaf = charToNum(buffer + PAGE_RANK_LEN * 2 + ISROOTLEN, ISLEAFLEN);
+	if (!isLeaf) {
+		int offset = PAGE_RANK_LEN * 2 + ISROOTLEN + ISLEAFLEN + NLEN;
+		indexNum = charToNum(buffer + offset, INDEXNUMLEN);
+		offset += INDEXNUMLEN + INDEXKINDLEN;
+		indexLen = charToNum(buffer + offset, INDEXLENLEN);
+		offset += INDEXLENLEN;
+		for (int i = 0; i < indexNum + 1; i++) {
+			int nextPage = charToNum(buffer + offset + NOTLEAFPAGESPACE, NOTLEAFPAGELEN - NOTLEAFPAGESPACE);
+			countPage(nextPage, pages);
+			offset += (NOTLEAFPAGELEN + indexLen + IDLEN);
+		}
+	}
+}
+
+void IXManager::destoryIndex(int indexRoot) {
+	tmpWorker.clear();
+	
+	countPage(indexRoot, tmpWorker);
+
+	freePage(tmpWorker);
 }
