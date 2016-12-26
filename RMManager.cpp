@@ -1,6 +1,7 @@
 #include "RMManager.h"
 #include <string>
 #include "tool.h"
+#include <iostream>
 using namespace std;
 
 int RMManager::FindFreePage() {
@@ -13,9 +14,12 @@ int RMManager::FindFreePage() {
 		totPageNum = fileManager->size(nowDataBaseHandle);
 		if (nowGAM >= totPageNum) { //扩展文件
 			fileManager->alloc(nowDataBaseHandle, nowGAM - totPageNum + 1); //填充空白
-			char *zeroPAD = AllZeroFill(PAGE_SIZE);
+			char zeroPAD[PAGE_SIZE];
+			for (int i = 0; i < PAGE_SIZE; i++)
+				zeroPAD[i] = 255;
+			//char *zeroPAD = AllOneFill(PAGE_SIZE);
 			fileManager->write(nowDataBaseHandle, nowGAM, zeroPAD);
-			delete[]zeroPAD;
+			//delete[]zeroPAD;
 		}
 		fileManager->read(nowDataBaseHandle, nowGAM, buffer);
 		for (int i = 1; i < PAGE_SIZE * BYTE_SIZE; i++) {
@@ -31,7 +35,6 @@ int RMManager::FindFreePage() {
 			break;
 		nowGAM += (PAGE_SIZE * BYTE_SIZE);
 	}
-
 	totPageNum = fileManager->size(nowDataBaseHandle);
 	if (nowGAM + offset >= totPageNum) 
 		fileManager->alloc(nowDataBaseHandle, nowGAM + offset - totPageNum + 1); //扩展文件
@@ -56,6 +59,7 @@ int RMManager::CreateDataBase(const char* dbName) {
 	if (fileManager->ifexist(dataBaseName))
 		return -2; //已经存在
 	int64_t fileHandle = fileManager->open(dataBaseName);
+	fileManager->alloc(fileHandle, 1);
 	char* write = AllZeroFill(PAGE_SIZE); //全0页
 	int64_t ret = fileManager->write(fileHandle, 0, write);
 	delete[]write;
@@ -89,7 +93,6 @@ int RMManager::CreateTable(/*char *tableNum,*/ TableInfomation tableInfo) {
 	//寻找空闲页
 	int TableHeadPageRank = FindFreePage();
 	int FirstDataPageRank = FindFreePage();
-
 	int tableNum = charToNum(buffer, TABLE_NUM_LEN);
 	tableNum++;
 	writeNum(buffer, TABLE_NUM_LEN, tableNum);
@@ -157,7 +160,7 @@ int RMManager::CreateTable(/*char *tableNum,*/ TableInfomation tableInfo) {
 		int dataLen = charToNum(tableInfo.columns[i].columnLen, COLUMN_LEN_LEN);
 		fixedColumnLen += dataLen;
 	}
-	totLen = (fixedColumnNum - 1) / BYTE_SIZE + 1;
+	totLen = (fixedColumnNum - 1) / BYTE_SIZE + 1 + fixedColumnLen;
 	writeNum(buffer + offset, FIXEDCOLUMNNUM_LEN, fixedColumnNum);
 	offset += FIXEDCOLUMNNUM_LEN;
 	writeNum(buffer + offset, FIXEDCOLUMNLEN_LEN, fixedColumnLen);
@@ -373,7 +376,7 @@ void RMManager::freePage(vector<int>& pageRanks) {
 		fileManager->write(nowDataBaseHandle, nowGAM, buffer);
 }
 
-int RMManager::destroyTable(int tableHead) {
+void RMManager::destroyTable(int tableHead) {
 	char buffer[PAGE_SIZE];
 	fileManager->read(nowDataBaseHandle, tableHead, buffer);
 	tmpWorker.clear();

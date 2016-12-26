@@ -17,7 +17,7 @@ const int TABLE_HEAD_PLACE_LEN = 4;
 const int PAGE_RANK_LEN = 4;
 //列信息
 const int COLUMN_NUM_LEN = 4;
-const int COLUMN_NAME_LEN = 32;
+//const int COLUMN_NAME_LEN = 32;
 const int NOPAGE = 0;
 //列数据类型
 const int KIND_INT = 1;

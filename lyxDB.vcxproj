@@ -53,6 +53,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
+      <AdditionalOptions>/D "_CRT_SECURE_NO_DEPRECATE" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -91,6 +92,7 @@
     <ClCompile Include="backend.cpp" />
     <ClCompile Include="FileManager.cpp" />
     <ClCompile Include="IXManager.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="RMManager.cpp" />
     <ClCompile Include="tool.cpp" />
   </ItemGroup>

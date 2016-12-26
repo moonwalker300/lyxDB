@@ -62,16 +62,22 @@ public:
 	void markChange(int i) { change[i] = true; }
 	void Kill();
 	void Update(int i, ContentEntry c);
+	void UpdateFlush();
 };
 
 class BackEnd {
-	IXManager* im;
 	RMManager* rm;
-	FileManager* fm;
+	IXManager* im;
 	int64_t nowDataBaseHandle;
 	//std::vector<int> idLimit;
 public:
-	BackEnd() {}
+	FileManager* fm;
+	BackEnd();
+	~BackEnd() { 
+		delete fm; 
+	//	delete im; 
+	//	delete rm; 
+	}
 	void createDataBase(std::string& name);
 	void dropDataBase(std::string& name);
 	std::vector<std::string> showDatabases();

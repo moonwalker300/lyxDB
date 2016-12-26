@@ -26,7 +26,9 @@ public:
 			insertAsFirst(i);
 		}
 	}
+	File() {}
 	~File() {
+		cout << "DW" << endl;
 		for (int64_t i = 0; i < 10000; i++) {
 			if (bufs[i].dirty) {
 				writeFile(bufs[i].pageNumber, bufs[i].buffer);
@@ -38,8 +40,8 @@ public:
 			return -2;
 		}
 		int64_t location = getLocation(pageNumber);
-		if (location > 0) {
-			strncpy(buffer, bufs[location].buffer, 4096);
+		if (location >= 0) {
+			writeStr(buffer, 4096, bufs[location].buffer);
 			insertAsFirst(location);
 		}
 		else {
@@ -51,7 +53,7 @@ public:
 			readFile(pageNumber, bufs[last].buffer);
 			bufs[last].pageNumber = pageNumber;
 			bufs[last].dirty = false;
-			strncpy(buffer, bufs[last].buffer, 4096);
+			writeStr(buffer, 4096, bufs[last].buffer);
 			insertAsFirst(last);
 			hashMap.insert(pair<int64_t, int64_t>(pageNumber, last));
 		}
@@ -62,8 +64,8 @@ public:
 			return -2;
 		}
 		int64_t location = getLocation(pageNumber);
-		if (location > 0) {
-			strncpy(bufs[location].buffer, buffer, 4096);
+		if (location >= 0) {
+			writeStr(bufs[location].buffer, 4096, buffer);
 			insertAsFirst(location);
 			bufs[location].dirty = true;
 		}
@@ -73,7 +75,7 @@ public:
 				writeFile(bufs[last].pageNumber, bufs[last].buffer);
 			}
 			hashMap.erase(bufs[last].pageNumber);
-			strncpy(bufs[last].buffer, buffer, 4096);
+			writeStr(bufs[last].buffer, 4096, buffer);
 			bufs[last].pageNumber = pageNumber;
 			insertAsFirst(last);
 			bufs[last].dirty = true;
@@ -111,7 +113,10 @@ private:
 		return 0;
 	}
 	int64_t writeFile(int64_t pageNumber, char* buffer) {
-		ofstream out(fileName, ios::app | ios::binary);
+		if (pageNumber > 0)
+			return 0;
+		cout << "DS" << pageNumber << endl;
+		ofstream out(fileName, ios::in | ios::out | ios::binary);
 		if (!out) {
 			return -1;
 		}
@@ -148,23 +153,38 @@ private:
 	}
 };
 FileManager::FileManager() {
+	fileMap1.clear();
+	fileMap2.clear();
 }
 FileManager::~FileManager() {
-	for (auto it = fileMap.begin(); it != fileMap.end(); ++it) {
-		close(it->first);
-	}
+	//for (auto it = fileMap.begin(); it != fileMap.end(); ++it) {
+	//	close(it->first);
+	//}
+	fileMap1.clear();
+	for (int i = 0; i < fileMap2.size(); i++)
+		delete fileMap2[i];
+	
+	fileMap2.clear();
+}
+
+void FileManager::flush() {
+	fileMap1.clear();
+	for (int i = 0; i < fileMap2.size(); i++)
+		delete fileMap2[i];
+
+	fileMap2.clear();
 }
 
 bool FileManager::ifexist(std::string fileName) {
-	for (auto it = fileMap.begin(); it != fileMap.end(); ++it) {
-		if (it->second.fileName == fileName) {
+	for (int i = 0; i < fileMap1.size(); i++)
+		if (fileMap2[i]->fileName == fileName) {
 			return true;
 		}
-	}
 
-	ifstream fin("hello.txt");
-	if (!fin)
+	ifstream fin(fileName);
+	if (!fin) {
 		return false;
+	}
 	else {
 		fin.close();
 		return true;
@@ -172,11 +192,10 @@ bool FileManager::ifexist(std::string fileName) {
 }
 
 int64_t FileManager::open(std::string fileName) {
-	for (auto it = fileMap.begin(); it != fileMap.end(); ++it) {
-		if (it->second.fileName == fileName) {
-			return it->first;
+	for (int i = 0; i < fileMap1.size(); i++)
+		if (fileMap2[i]->fileName == fileName) {
+			return fileMap1[i];
 		}
-	}
 	ofstream out(fileName, ios::app | ios::binary);
 	if (!out) {
 		return -1;
@@ -184,56 +203,78 @@ int64_t FileManager::open(std::string fileName) {
 	out.seekp(0, ios::end);
 	int64_t fileSize = out.tellp() / 4096;
 	int64_t minUnusedDescriptor = 1;
-	for (auto it = fileMap.begin(); it != fileMap.end(); ++it) {
-		if (it->first > minUnusedDescriptor) {
-			break;
-		}
-		else {
-			minUnusedDescriptor++;
-		}
-	}
-	fileMap.insert(pair<int64_t, File>(minUnusedDescriptor, File(fileName, fileSize)));
+	for (int i = 0; i < fileMap1.size(); i++)
+		if (fileMap1[i] >= minUnusedDescriptor)
+			minUnusedDescriptor = fileMap1[i] + 1;
+	File *file = new File(fileName, fileSize);
+	fileMap1.push_back(minUnusedDescriptor);
+	fileMap2.push_back(file);
+	//fileMap[minUnusedDescriptor] = file;
+	//fileMap.insert(pair<int64_t, File>(minUnusedDescriptor, file));
 	return minUnusedDescriptor;
 }
 int64_t FileManager::close(int64_t fileDescriptor) {
-	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-		if (it->first == fileDescriptor) {
-			fileMap.erase(it);
+//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
+//		if (it->first == fileDescriptor) {
+//			fileMap.erase(it);
+//			return 0;
+//		}
+//	}
+	cout << "JCZ" << endl;
+	for (int i = 0; i < fileMap1.size(); i++)
+		if (fileMap1[i] == fileDescriptor) {
+			cout << i << endl;
+			fileMap1.erase(fileMap1.begin() + i);
+			delete fileMap2[i];
+			fileMap2.erase(fileMap2.begin() + i);
 			return 0;
 		}
-	}
 	return -1;
 }
 int64_t FileManager::read(int64_t fileDescriptor, int64_t pageNumber, char * buffer) {
-	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-		if (it->first == fileDescriptor) {
-			return it->second.read(pageNumber, buffer);
-		}
-	}
+//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
+//		if (it->first == fileDescriptor) {
+//			return it->second.read(pageNumber, buffer);
+//		}
+//	}
+	for (int i = 0; i < fileMap1.size(); i++)
+		if (fileMap1[i] == fileDescriptor)
+			return fileMap2[i]->read(pageNumber, buffer);
 	return -1;
 }
 int64_t FileManager::write(int64_t fileDescriptor, int64_t pageNumber, char * buffer) {
-	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-		if (it->first == fileDescriptor) {
-			return it->second.write(pageNumber, buffer);
-		}
-	}
+//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
+//		if (it->first == fileDescriptor) {
+//			return it->second.write(pageNumber, buffer);
+//		}
+//	}
+	for (int i = 0; i < fileMap1.size(); i++)
+		if (fileMap1[i] == fileDescriptor) 
+			return fileMap2[i]->write(pageNumber, buffer);
 	return -1;
 }
 int64_t FileManager::size(int64_t fileDescriptor) {
-	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-		if (it->first == fileDescriptor) {
-			return it->second.size();
-		}
-	}
+//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
+//		if (it->first == fileDescriptor) {
+//			return it->second.size();
+//		}
+//	}
+	for (int i = 0; i < fileMap1.size(); i++)
+		if (fileMap1[i] == fileDescriptor)
+			return fileMap2[i]->size();
 	return -1;
 }
 int64_t FileManager::alloc(int64_t fileDescriptor, int64_t pageNumber) {
+	/*
 	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
 		if (it->first == fileDescriptor) {
 			return it->second.alloc(pageNumber);
 		}
 	}
+	*/
+	for (int i = 0; i < fileMap1.size(); i++)
+		if (fileMap1[i] == fileDescriptor)
+			return fileMap2[i]->alloc(pageNumber);
 	return -1;
 }
 FileManager fileManager;

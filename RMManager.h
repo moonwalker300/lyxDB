@@ -29,7 +29,7 @@ public:
 	//删除记录,函数返回剩余空间，返回-1表示没有数据库，-2表示没有这一页，-3表示没有这一记录
 	int UpdateRecord(int pageRank, int slotRank, char* record, int recordLen);
 	
-	int destroyTable(int tableHead);
+	void destroyTable(int tableHead);
 };
 
 #endif

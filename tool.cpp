@@ -17,6 +17,13 @@ char* AllZeroFill(int goalLen) {
 	return ret;
 }
 
+char* AllOneFill(int goalLen) {
+	char* ret = new char[goalLen];
+	for (int i = 0; i < goalLen; i++)
+		ret[i] = 255;
+	return ret;
+}
+
 void ZeroClear(char* buffer) {
 	for (int i = 0; i < PAGE_SIZE; i++)
 		buffer[i] = 0;
@@ -26,7 +33,7 @@ int charToNum(char* numHead, int len) {
 	int ret = 0;
 	int radix = 1 << BYTE_SIZE;
 	for (int i = 0; i < len; i++)
-		ret = ret * radix + numHead[i];
+		ret = ret * radix + (unsigned char)(numHead[i]);
 	return ret;
 }
 
@@ -38,7 +45,7 @@ void writeNum(char* numHead, int len, int num) {
 	}
 }
 
-void writeStr(char* dest, int len, char* src) {
+void writeStr(char* dest, int len, const char* src) {
 	for (int i = 0; i < len; i++)
 		dest[i] = src[i];
 }

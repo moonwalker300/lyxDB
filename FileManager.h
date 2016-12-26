@@ -2,11 +2,13 @@
 #include<string>
 #include<map>
 #include<tuple>
+#include <vector>
 #include "common.h"
 class FileManager {
 public:
 	FileManager();
 	~FileManager();
+	void flush();
 	//判断某个文件是否存在
 	bool ifexist(std::string fileName);
 	//打开一个文件，返回这个文件的描述符，无法打开时返回-1
@@ -21,9 +23,11 @@ public:
 	int64_t size(int64_t fileDescriptor);
 	//向文件描述符对应的文件后面添加若干个空白页，返回新的大小，如果文件描述符无效，返回-1
 	int64_t alloc(int64_t fileDescriptor, int64_t pageNumber);
+	std::vector<int64_t> fileMap1;
 private:
 	class BufClass;
 	class File;
-	std::map<int64_t, File> fileMap;
+	std::vector<File*> fileMap2;
+//	std::map<int64_t, File> fileMap;
 };
 extern FileManager fileManager;

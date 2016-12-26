@@ -5,6 +5,8 @@ char* ZeroFill(char *src, int oriLen, int goalLen);
 //补零函数，若goalLen<oriLen则只复制前goalLen个字符
 char* AllZeroFill(int goalLen);
 //全零页
+char* AllOneFill(int goalLen);
+//全1页
 void ZeroClear(char* buffer);
 int charToNum(char* numHead, int len);
 void writeNum(char* numHead, int len, int num);

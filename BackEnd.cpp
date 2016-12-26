@@ -106,7 +106,7 @@ TableMeta BackEnd::getTableMeta(int no) {
 	fm->read(nowDataBaseHandle, headPlace, buffer);
 	//复制
 	TableMeta ret;
-	int offset = 0;
+	offset = 0;
 	ret.pageNumber = charToNum(buffer + offset, PAGE_RANK_LEN);
 	offset += PAGE_RANK_LEN;
 	writeStr(ret.name, TABLE_NAME_LEN, buffer + offset);
@@ -404,11 +404,11 @@ void IndexIterator::Kill() {
 		else
 			writeStr(tmpIndex + 1, entries[i].sval.length(), entries[i].sval.c_str(), sizes[i]);
 
-		int indexRoot = charToNum(bufferTable + i * (totLen + INDEX_PLACE_LEN) + totLen, INDEX_PLACE_LEN);
+		int indexRoot = charToNum(bufferTable + tmpoffset + i * (totLen + INDEX_PLACE_LEN) + totLen, INDEX_PLACE_LEN);
 		im->DeleteRecordAndIX(indexRoot, tmpIndex, sizes[i] + 1, kinds[i], entries[0].ival);
 	}
 	rm->DeleteRecord(tableHead, recordPage, recordSlot);
-	this->operator++;
+	this->operator++(0);
 }
 
 void IndexIterator::Update(int i, ContentEntry c) {
@@ -421,22 +421,66 @@ void IndexIterator::Update(int i, ContentEntry c) {
 
 	tmpoffset += totLen * recordSlot;
 
+	int tmpoffset2 = tmpoffset + totLen - ((columnNum - 1) / BYTE_SIZE + 1) + (i - 1) / BYTE_SIZE + 1;
+	char tmpIndex[300];
+	//找出原来的值
+	if (buf[tmpoffset2] & (1 << (BYTE_SIZE - 1 - i % BYTE_SIZE)) > 0)
+		tmpIndex[0] = 1;
+	else
+		tmpIndex[0] = 0;
+	
+	for (int j = 0; j < i; j++)
+		tmpoffset += sizes[j];
+	writeStr(tmpIndex + 1, sizes[i], buffer + tmpoffset);
+
 	if (c.isNull) {
-		int tmpoffset2 = tmpoffset + totLen - ((columnNum - 1) / BYTE_SIZE + 1) + (i - 1) / BYTE_SIZE + 1;
 		buf[tmpoffset2] |= (1 << (BYTE_SIZE - 1 - i % BYTE_SIZE));
 	}
 	else {
-		int tmpoffset2 = tmpoffset + totLen - ((columnNum - 1) / BYTE_SIZE + 1) + (i - 1) / BYTE_SIZE + 1;
 		if (buf[tmpoffset2] & (1 << (BYTE_SIZE - 1 - i % BYTE_SIZE)) > 0)
 			buf[tmpoffset2] -= (1 << (BYTE_SIZE - 1 - i % BYTE_SIZE));
-		for (int j = 0; j < i; j++)
-			tmpoffset += sizes[j];
 		if (c.isString) {
-			writeStr(buffer + tmpoffset, c.sval.length(), c.sval.c_str(), sizes[i]);
+			writeStr(buf + tmpoffset, c.sval.length(), c.sval.c_str(), sizes[i]);
 		}
 		else {
-			writeNum(buffer + tmpoffset, sizes[i], c.ival);
+			writeNum(buf + tmpoffset, sizes[i], c.ival);
 		}
 	}
-	entries
+
+	fileManager->write(nowDataBaseHandle, recordPage, buf);
+	
+	lyxbuf.push_back(c);
+	columnbuf.push_back(i);
+	zhbuf.push_back(entries[0].ival);
+	int indexoffset = PAGE_RANK_LEN * 3 + IDLEN + TABLE_NAME_LEN + COLUMN_NUM_LEN;
+	int tLen = COLUMN_NAME_LEN + COLUMN_KIND_LEN + COLUMN_PROPERTY_LEN + COLUMN_LEN_LEN;
+	int indexRoot = charToNum(bufferTable + indexoffset + i * (tLen + INDEX_PLACE_LEN) + tLen, INDEX_PLACE_LEN);
+
+	im->DeleteRecordAndIX(indexRoot, tmpIndex, sizes[i] + 1, kinds[i], entries[0].ival);
+	entries[i] = c;
+}
+
+void IndexIterator::UpdateFlush() {
+	int num = lyxbuf.size();
+	char tmpIndex[300];
+	int tLen = COLUMN_NAME_LEN + COLUMN_KIND_LEN + COLUMN_PROPERTY_LEN + COLUMN_LEN_LEN;
+	int indexoffset = PAGE_RANK_LEN * 3 + IDLEN + TABLE_NAME_LEN + COLUMN_NUM_LEN;
+	for (int i = 0; i < num; i++) {
+		//准备好新索引
+		if (lyxbuf[i].isNull)
+			tmpIndex[0] = 1;
+		else {
+			tmpIndex[0] = 0;
+			if (lyxbuf[i].isString) {
+				writeStr(tmpIndex + 1, lyxbuf[i].sval.length(), lyxbuf[i].sval.c_str(), sizes[columnbuf[i]]);
+			}
+			else {
+				writeNum(tmpIndex + 1, sizes[columnbuf[i]], lyxbuf[i].ival);
+			}
+		}
+		int indexRoot = charToNum(bufferTable + indexoffset + i * (tLen + INDEX_PLACE_LEN) + tLen, INDEX_PLACE_LEN);
+		int nexRoot = im->InsertRecordAndIX(indexRoot, tmpIndex, sizes[columnbuf[i]] + 1, kinds[columnbuf[i]], recordPage, recordSlot, entries[0].ival);
+		writeNum(bufferTable + indexoffset + i * (tLen + INDEX_PLACE_LEN) + tLen, INDEX_PLACE_LEN, nexRoot);
+	}
+	fileManager->write(nowDataBaseHandle, tableHead, bufferTable);
 }

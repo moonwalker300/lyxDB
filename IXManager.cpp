@@ -12,9 +12,10 @@ int IXManager::FindFreePage() {
 		totPageNum = fileManager->size(nowDataBaseHandle);
 		if (nowGAM >= totPageNum) { //扩展文件
 			fileManager->alloc(nowDataBaseHandle, nowGAM - totPageNum + 1); //填充空白
-			char *zeroPAD = AllZeroFill(PAGE_SIZE);
+			char zeroPAD[PAGE_SIZE];
+			for (int i = 0; i < PAGE_SIZE; i++)
+				zeroPAD[i] = 255;
 			fileManager->write(nowDataBaseHandle, nowGAM, zeroPAD);
-			delete[]zeroPAD;
 		}
 		fileManager->read(nowDataBaseHandle, nowGAM, buffer);
 		for (int i = 1; i < PAGE_SIZE * BYTE_SIZE; i++) {
@@ -170,12 +171,12 @@ int IXManager::SearchIndex(int rootPage, char* index, int indexLen, int dataKind
 	char tmpIndex[256];
 	int nowPage = rootPage;
 	int offset;
-	int indexNum, indexKind, indexLen;
+	int indexNum, indexKind;// , indexLen;
 	fileManager->read(nowDataBaseHandle, rootPage, buffer);
 	offset = PAGE_RANK_LEN + PAGE_RANK_LEN + ISROOTLEN + ISLEAFLEN + NLEN + INDEXNUMLEN;
 	indexKind = charToNum(buffer + offset, INDEXKINDLEN);
 	offset += INDEXKINDLEN;
-	indexLen = charToNum(buffer + offset, INDEXLENLEN);
+	//indexLen = charToNum(buffer + offset, INDEXLENLEN);
 
 	while (true) {
 		fileManager->read(nowDataBaseHandle, nowPage, buffer);
@@ -259,12 +260,12 @@ int IXManager::InsertRecordAndIX(int rootPage, char* index, int indexLen, int da
 	char tmpIndex[256];
 	int nowPage = rootPage;
 	int offset;
-	int indexNum, indexKind, indexLen;
+	int indexNum, indexKind;// , indexLen;
 	fileManager->read(nowDataBaseHandle, rootPage, buffer);
 	offset = PAGE_RANK_LEN + PAGE_RANK_LEN + ISROOTLEN + ISLEAFLEN + NLEN + INDEXNUMLEN;
 	indexKind = charToNum(buffer + offset, INDEXKINDLEN);
 	offset += INDEXKINDLEN;
-	indexLen = charToNum(buffer + offset, INDEXLENLEN);
+	//indexLen = charToNum(buffer + offset, INDEXLENLEN);
 
 	while (true) {
 		fileManager->read(nowDataBaseHandle, nowPage, buffer);
@@ -678,12 +679,12 @@ int IXManager::DeleteRecordAndIX(int rootPage, char* index, int indexLen, int da
 	char tmpIndex[256];
 	int nowPage = rootPage;
 	int offset;
-	int indexNum, indexKind, indexLen;
+	int indexNum, indexKind;// , indexLen;
 	fileManager->read(nowDataBaseHandle, rootPage, buffer);
 	offset = PAGE_RANK_LEN + PAGE_RANK_LEN + ISROOTLEN + ISLEAFLEN + NLEN + INDEXNUMLEN;
 	indexKind = charToNum(buffer + offset, INDEXKINDLEN);
 	offset += INDEXKINDLEN;
-	indexLen = charToNum(buffer + offset, INDEXLENLEN);
+	//indexLen = charToNum(buffer + offset, INDEXLENLEN);
 
 	while (true) {
 		fileManager->read(nowDataBaseHandle, nowPage, buffer);
@@ -712,7 +713,7 @@ int IXManager::DeleteRecordAndIX(int rootPage, char* index, int indexLen, int da
 
 	offset = PAGE_RANK_LEN * 2 + ISROOTLEN + ISLEAFLEN + NLEN;
 
-	int indexNum = charToNum(buffer + offset, INDEXNUMLEN);
+	indexNum = charToNum(buffer + offset, INDEXNUMLEN);
 
 	offset += (INDEXNUMLEN + INDEXKINDLEN + INDEXLENLEN);
 	//遍历叶结点寻找
@@ -745,12 +746,12 @@ int IXManager::UpDateRecordAndIX(int rootPage, char* index, int indexLen, int da
 	char tmpIndex[256];
 	int nowPage = rootPage;
 	int offset;
-	int indexNum, indexKind, indexLen;
+	int indexNum, indexKind;// , indexLen;
 	fileManager->read(nowDataBaseHandle, rootPage, buffer);
 	offset = PAGE_RANK_LEN + PAGE_RANK_LEN + ISROOTLEN + ISLEAFLEN + NLEN + INDEXNUMLEN;
 	indexKind = charToNum(buffer + offset, INDEXKINDLEN);
 	offset += INDEXKINDLEN;
-	indexLen = charToNum(buffer + offset, INDEXLENLEN);
+	//indexLen = charToNum(buffer + offset, INDEXLENLEN);
 
 	while (true) {
 		fileManager->read(nowDataBaseHandle, nowPage, buffer);
@@ -779,7 +780,7 @@ int IXManager::UpDateRecordAndIX(int rootPage, char* index, int indexLen, int da
 
 	offset = PAGE_RANK_LEN * 2 + ISROOTLEN + ISLEAFLEN + NLEN;
 
-	int indexNum = charToNum(buffer + offset, INDEXNUMLEN);
+	indexNum = charToNum(buffer + offset, INDEXNUMLEN);
 
 	offset += (INDEXNUMLEN + INDEXKINDLEN + INDEXLENLEN);
 	//遍历叶结点寻找
