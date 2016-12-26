@@ -1,18 +1,8 @@
-﻿生成启动时间为 2016/12/26 16:23:24。
+﻿生成启动时间为 2016/12/26 23:14:53。
      1>项目“C:\Users\Administrator\Documents\Visual Studio 2013\Projects\lyxDB\lyxDB\lyxDB.vcxproj”在节点 2 上(Build 个目标)。
      1>ClCompile:
-         D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _LIB /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt /D "_CRT_SECURE_NO_DEPRECATE" FileManager.cpp
-         FileManager.cpp
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(164): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(172): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(179): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(195): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(206): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(224): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(240): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(251): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(262): warning C4018: “<”: 有符号/无符号不匹配
-     1>c:\users\administrator\documents\visual studio 2013\projects\lyxdb\lyxdb\filemanager.cpp(275): warning C4018: “<”: 有符号/无符号不匹配
+         D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _LIB /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:prompt /D "_CRT_SECURE_NO_DEPRECATE" main.cpp
+         main.cpp
        Link:
          D:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\Administrator\Documents\Visual Studio 2013\Projects\lyxDB\Debug\lyxDB.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\Administrator\Documents\Visual Studio 2013\Projects\lyxDB\Debug\lyxDB.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\Administrator\Documents\Visual Studio 2013\Projects\lyxDB\Debug\lyxDB.lib" /MACHINE:X86 Debug\backend.obj
          Debug\FileManager.obj
@@ -25,4 +15,4 @@
 
 生成成功。
 
-已用时间 00:00:01.29
+已用时间 00:00:01.88

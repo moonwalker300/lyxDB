@@ -89,12 +89,18 @@ int compareIndex(char* index1, char* index2, int len) {
 		return -1;
 	else if ((index1[0] == 0) && (index2[0] == 1))
 		return 1;
-	else
-		return compareStr(index1, index2, len);
+	else {
+		for (int i = 0; i < len; i++)
+			if ((unsigned char)(index1[i]) > (unsigned char)(index2[i]))
+				return 1;
+			else if ((unsigned char)(index1[i]) < (unsigned char)(index2[i]))
+				return -1;
+		return 0;
+	}
 }
 
 int compareIndexAndID(char* index1, char* index2, int len, int id1, int id2) {
-	int comp1 = compareIndex(index1, index2, len - IDLEN);
+	int comp1 = compareIndex(index1, index2, len); //Ô­À´ÓĞ-IDLEN
 	if (comp1 != 0)
 		return comp1;
 	else if (id1 > id2)

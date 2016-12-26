@@ -28,7 +28,6 @@ public:
 	}
 	File() {}
 	~File() {
-		cout << "DW" << endl;
 		for (int64_t i = 0; i < 10000; i++) {
 			if (bufs[i].dirty) {
 				writeFile(bufs[i].pageNumber, bufs[i].buffer);
@@ -101,7 +100,7 @@ private:
 		if (!in) {
 			return -1;
 		}
-		in.seekg(ifstream::end);
+		in.seekg(0, fstream::end);
 		int64_t size = in.tellg() / 4096;
 		if (pageNumber >= size) {
 			ZeroClear(buffer);
@@ -113,14 +112,11 @@ private:
 		return 0;
 	}
 	int64_t writeFile(int64_t pageNumber, char* buffer) {
-		if (pageNumber > 0)
-			return 0;
-		cout << "DS" << pageNumber << endl;
 		ofstream out(fileName, ios::in | ios::out | ios::binary);
 		if (!out) {
 			return -1;
 		}
-		out.seekp(ofstream::end);
+		out.seekp(0, fstream::end);
 		int64_t size = out.tellp() / 4096;
 		char* zeroPad = AllZeroFill(PAGE_SIZE);
 		while (size < pageNumber) {

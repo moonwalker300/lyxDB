@@ -218,12 +218,12 @@ int RMManager::GetRecord(int pageRank, int slotRank, char* result, int& recordLe
 	return 0;
 }
 
-int RMManager::InsertRecord(int headPlace, int& pageRank, int& slotRank, char* record, int recordLen) {
+int RMManager::InsertRecord(int headPlace, int& pageRank, int& slotRank, char* record, int recordLen, char* bufferTable) {
 	if ((nowDataBaseHandle == 0) || (nowDataBaseName == "")) //当前没有数据库
 		return -1;
 
 	char buffer[PAGE_SIZE];
-	char bufferTable[PAGE_SIZE];
+//	char bufferTable[PAGE_SIZE];
 	int offset;
 	/*
 	//先找到表头页
@@ -239,7 +239,7 @@ int RMManager::InsertRecord(int headPlace, int& pageRank, int& slotRank, char* r
 	headPlace = charToNum(buffer + offset, TABLE_HEAD_PLACE_LEN);
 	*/
 	//读表头页
-	fileManager->read(nowDataBaseHandle, headPlace, bufferTable);
+	//fileManager->read(nowDataBaseHandle, headPlace, bufferTable);
 
 	offset = PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN;
 	pageRank = charToNum(bufferTable + offset, PAGE_RANK_LEN);
@@ -253,8 +253,10 @@ int RMManager::InsertRecord(int headPlace, int& pageRank, int& slotRank, char* r
 		offset += 2 * PAGE_RANK_LEN;
 		writeNum(buffer + offset, PAGE_RANK_LEN, tmp); //链入表中
 		writeNum(bufferTable + PAGE_RANK_LEN + TABLE_NAME_LEN, PAGE_RANK_LEN, pageRank);
+		writeNum(bufferTable + PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN, PAGE_RANK_LEN, pageRank); //更新下一有空页
 		offset += PAGE_RANK_LEN;
 		writeNum(buffer + offset, PAGE_RANK_LEN, NOPAGE);
+		offset += PAGE_RANK_LEN;
 		offset += FIXEDCOLUMNNUM_LEN + FIXEDCOLUMNLEN_LEN + RECORDLENLEN;
 		int totLen = charToNum(buffer + offset - RECORDLENLEN, RECORDLENLEN);
 		writeNum(buffer + offset, FIRSTSLOTLEN, 0); //一开始没有记录
@@ -272,6 +274,7 @@ int RMManager::InsertRecord(int headPlace, int& pageRank, int& slotRank, char* r
 		fileManager->read(nowDataBaseHandle, pageRank, buffer); //读数据页
 	offset = PAGE_RANK_LEN * 5 + FIXEDCOLUMNLEN_LEN + FIXEDCOLUMNNUM_LEN + RECORDLENLEN;
 	slotRank = charToNum(buffer + offset, FIRSTSLOTLEN);
+	offset += FIRSTSLOTLEN;
 	offset += slotRank * recordLen;
 	//下一有空槽
 	int nextSlot = getSlot(charToNum(buffer + offset, FIRSTSLOTLEN));
@@ -283,7 +286,7 @@ int RMManager::InsertRecord(int headPlace, int& pageRank, int& slotRank, char* r
 		int tmp = charToNum(buffer + PAGE_RANK_LEN * 4, PAGE_RANK_LEN);
 		writeNum(bufferTable + PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN, PAGE_RANK_LEN, tmp);
 	}
-	fileManager->write(nowDataBaseHandle, headPlace, bufferTable);
+	//fileManager->write(nowDataBaseHandle, headPlace, bufferTable);
 	fileManager->write(nowDataBaseHandle, pageRank, buffer); 
 	return 0; 
 }

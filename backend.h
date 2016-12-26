@@ -50,6 +50,8 @@ public:
 	std::vector<int> sizes;
 	std::vector<ContentEntry> lyxbuf;
 	std::vector<int> columnbuf;
+	std::vector<int> pageBuf;
+	std::vector<int> slotBuf;
 	std::vector<int> zhbuf;
 	char buffer[PAGE_SIZE];
 	char bufferTable[PAGE_SIZE]; //±íÍ·Ò³»º´æ

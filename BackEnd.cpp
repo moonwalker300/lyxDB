@@ -179,7 +179,7 @@ void BackEnd::insertRecord(int no, std::vector<ContentEntry>& line) {
 	}
 	int pageRank, slotRank;
 	//插入
-	rm->InsertRecord(headPlace, pageRank, slotRank, tmpRecord, recordLen);
+	rm->InsertRecord(headPlace, pageRank, slotRank, tmpRecord, recordLen, buffer);
 
 	//放入索引
 	offset = PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN * 2 + IDLEN + COLUMN_NUM_LEN;
@@ -203,7 +203,8 @@ void BackEnd::insertRecord(int no, std::vector<ContentEntry>& line) {
 		}
 		int indexRoot = charToNum(buffer + offset, INDEXLENLEN);
 		int newRoot = im->InsertRecordAndIX(indexRoot, tmpRecord, len + 1, kind, pageRank, slotRank, id);
-		writeNum(buffer + offset, INDEXLENLEN, newRoot);
+		if (newRoot != 0)  //根发生了变化
+			writeNum(buffer + offset, INDEXLENLEN, newRoot);
 		offset += INDEXLENLEN;
 	}
 	fm->write(nowDataBaseHandle, headPlace, buffer);
@@ -214,7 +215,7 @@ void IndexIterator::operator++(int) {
 		return;
 	while (true) {
 		if (slotRank == indexNum - 1) {
-			offset += (indexLen + IDLEN + LEAFNEXTSPACE);
+			offset += (LEAFPAGELEN + LEAFSLOTLEN + indexLen + IDLEN + LEAFNEXTSPACE);
 			pageRank = charToNum(buffer + offset, LEAFNEXTLEN - LEAFNEXTSPACE);
 			if (pageRank == NOPAGE) {
 				flag = true;
@@ -223,7 +224,7 @@ void IndexIterator::operator++(int) {
 			fileManager->read(nowDataBaseHandle, pageRank, buffer);
 			offset = PAGE_RANK_LEN * 2 + ISROOTLEN + ISLEAFLEN + NLEN;
 			indexNum = charToNum(buffer + offset, INDEXNUMLEN);
-			offset += INDEXKINDLEN + INDEXLENLEN;
+			offset += (INDEXNUMLEN + INDEXKINDLEN + INDEXLENLEN);
 			slotRank = 0;
 		}
 		else {
@@ -376,15 +377,17 @@ IndexIterator BackEnd::begin(int no, Filter f) {
 		ret.limitPage = -1;
 		ret.limitSlot = -1;
 	}
-
-	if (ret.pageRank > 0) {
+	if ((ret.pageRank == ret.limitPage) && (ret.slotRank == ret.limitSlot))
+		ret.flag = true;
+	else if (ret.pageRank > 0) {
 		fm->read(nowDataBaseHandle, ret.pageRank, ret.buffer);
 		ret.offset = PAGE_RANK_LEN * 2 + ISROOTLEN + ISLEAFLEN + NLEN + INDEXNUMLEN + INDEXKINDLEN + INDEXLENLEN + ret.slotRank * (LEAFPAGELEN + LEAFSLOTLEN + ret.indexLen + IDLEN);
 		ret.indexNum = charToNum(ret.buffer + PAGE_RANK_LEN * 2 + ISROOTLEN + ISLEAFLEN + NLEN, INDEXNUMLEN);
 		ret.read();
-	}
-	else
+	} else
 		ret.flag = true;
+
+	return ret;
 }
 
 void IndexIterator::Kill() {
@@ -407,6 +410,7 @@ void IndexIterator::Kill() {
 		int indexRoot = charToNum(bufferTable + tmpoffset + i * (totLen + INDEX_PLACE_LEN) + totLen, INDEX_PLACE_LEN);
 		im->DeleteRecordAndIX(indexRoot, tmpIndex, sizes[i] + 1, kinds[i], entries[0].ival);
 	}
+	fileManager->read(nowDataBaseHandle, pageRank, buffer);
 	rm->DeleteRecord(tableHead, recordPage, recordSlot);
 	this->operator++(0);
 }
@@ -431,7 +435,7 @@ void IndexIterator::Update(int i, ContentEntry c) {
 	
 	for (int j = 0; j < i; j++)
 		tmpoffset += sizes[j];
-	writeStr(tmpIndex + 1, sizes[i], buffer + tmpoffset);
+	writeStr(tmpIndex + 1, sizes[i], buf + tmpoffset);
 
 	if (c.isNull) {
 		buf[tmpoffset2] |= (1 << (BYTE_SIZE - 1 - i % BYTE_SIZE));
@@ -452,6 +456,8 @@ void IndexIterator::Update(int i, ContentEntry c) {
 	lyxbuf.push_back(c);
 	columnbuf.push_back(i);
 	zhbuf.push_back(entries[0].ival);
+	pageBuf.push_back(recordPage);
+	slotBuf.push_back(recordSlot);
 	int indexoffset = PAGE_RANK_LEN * 3 + IDLEN + TABLE_NAME_LEN + COLUMN_NUM_LEN;
 	int tLen = COLUMN_NAME_LEN + COLUMN_KIND_LEN + COLUMN_PROPERTY_LEN + COLUMN_LEN_LEN;
 	int indexRoot = charToNum(bufferTable + indexoffset + i * (tLen + INDEX_PLACE_LEN) + tLen, INDEX_PLACE_LEN);
@@ -478,9 +484,10 @@ void IndexIterator::UpdateFlush() {
 				writeNum(tmpIndex + 1, sizes[columnbuf[i]], lyxbuf[i].ival);
 			}
 		}
-		int indexRoot = charToNum(bufferTable + indexoffset + i * (tLen + INDEX_PLACE_LEN) + tLen, INDEX_PLACE_LEN);
-		int nexRoot = im->InsertRecordAndIX(indexRoot, tmpIndex, sizes[columnbuf[i]] + 1, kinds[columnbuf[i]], recordPage, recordSlot, entries[0].ival);
-		writeNum(bufferTable + indexoffset + i * (tLen + INDEX_PLACE_LEN) + tLen, INDEX_PLACE_LEN, nexRoot);
+		int indexRoot = charToNum(bufferTable + indexoffset + columnbuf[i] * (tLen + INDEX_PLACE_LEN) + tLen, INDEX_PLACE_LEN);
+		int nextRoot = im->InsertRecordAndIX(indexRoot, tmpIndex, sizes[columnbuf[i]] + 1, kinds[columnbuf[i]], pageBuf[i], slotBuf[i], zhbuf[i]);
+		if (nextRoot > 0)
+			writeNum(bufferTable + indexoffset + columnbuf[i] * (tLen + INDEX_PLACE_LEN) + tLen, INDEX_PLACE_LEN, nextRoot);
 	}
 	fileManager->write(nowDataBaseHandle, tableHead, bufferTable);
 }

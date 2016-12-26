@@ -54,7 +54,7 @@ int IXManager::CreateIndex(int tableRank, int columnRank) {
 	int tableHeadPlace = charToNum(buffer + offset + (TABLE_HEAD_PLACE_LEN + TABLE_NAME_LEN) * tableRank, TABLE_HEAD_PLACE_LEN); //查找的表位置
 
 	fileManager->read(nowDataBaseHandle, tableHeadPlace, buffer);
-	offset = PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN * 2;
+	offset = PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN * 2 + IDLEN;
 	int columnNum = charToNum(buffer + offset, COLUMN_NUM_LEN);
 	offset += COLUMN_NUM_LEN;
 	int totColumnInfoLen = COLUMN_NAME_LEN + COLUMN_PROPERTY_LEN + COLUMN_KIND_LEN + COLUMN_LEN_LEN + INDEX_PLACE_LEN;
@@ -74,13 +74,15 @@ int IXManager::CreateIndex(int tableRank, int columnRank) {
 	writeNum(buffer + offset + COLUMN_NAME_LEN + COLUMN_PROPERTY_LEN + COLUMN_KIND_LEN + COLUMN_LEN_LEN, INDEX_PLACE_LEN, indexRoot);
 
 	fileManager->write(nowDataBaseHandle, tableHeadPlace, buffer);
-	writeNum(buffer, 0, PAGE_RANK_LEN);
+	writeNum(buffer, PAGE_RANK_LEN, 0);
 	offset = PAGE_RANK_LEN;
 	writeNum(buffer + offset, PAGE_RANK_LEN, indexRoot);
 	offset += PAGE_RANK_LEN;
 	//这是根
 	writeNum(buffer + offset, ISROOTLEN, ISROOT);
 	offset += ISROOTLEN;
+	writeNum(buffer + offset, ISLEAFLEN, ISLEAF);
+	offset += ISLEAFLEN;
 	int n = (PAGE_SIZE - 32) / (1 + indexLen + IDLEN + NOTLEAFPAGELEN) - 1; //加上NULL标志的长度
 	writeNum(buffer + offset, NLEN, n);
 	offset += NLEN;
@@ -232,7 +234,7 @@ int IXManager::SearchIndex(int rootPage, char* index, int indexLen, int dataKind
 			}
 			if (Flag2 == 1) {
 				if (charToNum(buffer + offset + i * (LEAFPAGELEN + LEAFSLOTLEN + indexLen + IDLEN), LEAFPAGELEN) != NORECORD) {
-					Flag = 0;
+					Flag = 1;
 					retLeafPage = nowPage;
 					retLeafRank = i;
 					break;
@@ -373,8 +375,8 @@ int IXManager::InsertLeaf(int nowPage, char* index, int indexLen, int dataKind, 
 		int parent = charToNum(buffer, PAGE_RANK_LEN);
 //		writeNum(buffer2, PAGE_RANK_LEN, parent);
 		offset = PAGE_RANK_LEN;
-		writeNum(buffer2, PAGE_RANK_LEN, freePage);
-		offset += freePage;
+		writeNum(buffer2 + offset, PAGE_RANK_LEN, freePage);
+		offset += PAGE_RANK_LEN;
 		writeNum(buffer2 + offset, ISROOTLEN, NOTROOT); //不是根
 		offset += ISROOTLEN;
 		writeNum(buffer2 + offset, ISLEAFLEN, ISLEAF);
@@ -383,8 +385,8 @@ int IXManager::InsertLeaf(int nowPage, char* index, int indexLen, int dataKind, 
 		writeNum(buffer2 + offset, NLEN, n);
 		offset += NLEN;
 		
-		writeNum(buffer + offset + INDEXNUMLEN, INDEXKINDLEN, dataKind);
-		writeNum(buffer + offset + INDEXNUMLEN + INDEXKINDLEN, INDEXLENLEN, indexLen);
+		writeNum(buffer2 + offset + INDEXNUMLEN, INDEXKINDLEN, dataKind);
+		writeNum(buffer2 + offset + INDEXNUMLEN + INDEXKINDLEN, INDEXLENLEN, indexLen);
 
 		int part = indexNum / 2;
 		int moveoffset = offset + INDEXNUMLEN + INDEXKINDLEN + INDEXLENLEN;
@@ -411,7 +413,7 @@ int IXManager::InsertLeaf(int nowPage, char* index, int indexLen, int dataKind, 
 
 			writeNum(buffer2 + offset, INDEXNUMLEN, indexNum + 1 - part);
 
-			moveStr(buffer, moveoffset + putPlace * totLen, moveoffset + putPlace * totLen + totLen, (part - putPlace) * totLen);
+			moveStr(buffer, moveoffset + putPlace * totLen, moveoffset + putPlace * totLen + totLen, (part - putPlace - 1) * totLen);
 			//写新索引项
 			writeNum(buffer + moveoffset + putPlace * totLen, LEAFPAGELEN, pageRank);
 			writeNum(buffer + moveoffset + putPlace * totLen + LEAFPAGELEN, LEAFSLOTLEN, slotRank);
@@ -437,7 +439,7 @@ int IXManager::InsertLeaf(int nowPage, char* index, int indexLen, int dataKind, 
 			
 			writeNum(buffer2 + offset, INDEXNUMLEN, indexNum + 1 - part);
 			
-			moveStr(buffer2, moveoffset + (putPlace - part) * totLen, moveoffset + (putPlace - part) * totLen + totLen, (indexNum + 1 - putPlace) * totLen + LEAFNEXTLEN);
+			moveStr(buffer2, moveoffset + (putPlace - part) * totLen, moveoffset + (putPlace - part) * totLen + totLen, (indexNum - putPlace) * totLen + LEAFNEXTLEN);
 			
 			//写新索引项
 			writeNum(buffer2 + moveoffset + (putPlace - part) * totLen, LEAFPAGELEN, pageRank);
@@ -459,7 +461,7 @@ int IXManager::InsertLeaf(int nowPage, char* index, int indexLen, int dataKind, 
 		writeStr(tmpIndex, indexLen, buffer2 + moveoffset + LEAFPAGELEN + LEAFSLOTLEN, indexLen);
 		int id = charToNum(buffer2 + moveoffset + LEAFPAGELEN + LEAFSLOTLEN + indexLen, IDLEN);
 		
-		if (parent == NOPARENT) {
+		if (parent != NOPARENT) {
 			writeNum(buffer2, PAGE_RANK_LEN, parent);
 			fileManager->write(nowDataBaseHandle, nowPage, buffer);
 			fileManager->write(nowDataBaseHandle, freePage, buffer2);
@@ -493,11 +495,15 @@ int IXManager::InsertLeaf(int nowPage, char* index, int indexLen, int dataKind, 
 			writeNum(buffer3 + offset, NOTLEAFPAGELEN, nowPage);
 			offset += NOTLEAFPAGELEN;
 
-			writeStr(buffer + offset, indexLen, tmpIndex, indexLen);
+			writeStr(buffer3 + offset, indexLen, tmpIndex);
 			offset += indexLen;
-			writeNum(buffer + offset, IDLEN, id);
+			writeNum(buffer3 + offset, IDLEN, id);
 			offset += IDLEN;
-			writeNum(buffer + offset, NOTLEAFPAGELEN, freePage);
+			writeNum(buffer3 + offset, NOTLEAFPAGELEN, freePage);
+
+			writeNum(buffer, PAGE_RANK_LEN, newRoot);
+			writeNum(buffer + PAGE_RANK_LEN * 2, ISROOTLEN, NOTROOT);
+			writeNum(buffer2, PAGE_RANK_LEN, newRoot);
 
 			fileManager->write(nowDataBaseHandle, nowPage, buffer);
 			fileManager->write(nowDataBaseHandle, freePage, buffer2);
@@ -553,18 +559,18 @@ int IXManager::InsertNoLeaf(int nowPage, char* index, int indexLen, int dataKind
 
 		int freePage = FindFreePage();
 		offset = PAGE_RANK_LEN;
-		writeNum(buffer + PAGE_RANK_LEN, PAGE_RANK_LEN, freePage);
+		writeNum(buffer2 + offset, PAGE_RANK_LEN, freePage);
 		offset += PAGE_RANK_LEN;
-		writeNum(buffer + offset, ISROOTLEN, NOTROOT);
+		writeNum(buffer2 + offset, ISROOTLEN, NOTROOT);
 		offset += ISROOTLEN;
-		writeNum(buffer + offset, ISLEAFLEN, NOTLEAF);
+		writeNum(buffer2 + offset, ISLEAFLEN, NOTLEAF);
 		offset += ISLEAFLEN;
-		writeNum(buffer + offset, NLEN, limit);
+		writeNum(buffer2 + offset, NLEN, limit);
 		offset += NLEN;
 		offset += INDEXNUMLEN;
-		writeNum(buffer + offset, INDEXKINDLEN, dataKind);
+		writeNum(buffer2 + offset, INDEXKINDLEN, dataKind);
 		offset += INDEXKINDLEN;
-		writeNum(buffer + offset, INDEXLENLEN, indexLen);
+		writeNum(buffer2 + offset, INDEXLENLEN, indexLen);
 		offset += INDEXLENLEN;
 
 		int part = indexNum / 2;
@@ -602,7 +608,8 @@ int IXManager::InsertNoLeaf(int nowPage, char* index, int indexLen, int dataKind
 			moveStr(buffer, offset + putPlace * itemLen + NOTLEAFPAGELEN, offset + (putPlace + 1) * itemLen + NOTLEAFPAGELEN, (part - putPlace - 1) * itemLen);
 			
 			writeStr(buffer + offset + putPlace * itemLen + NOTLEAFPAGELEN, indexLen, index, indexLen);
-			writeNum(buffer + offset + putPlace * itemLen + NOTLEAFPAGELEN + indexLen, NOTLEAFPAGELEN, newPage);
+			writeNum(buffer + offset + putPlace * itemLen + NOTLEAFPAGELEN + indexLen, IDLEN, recordid);
+			writeNum(buffer + offset + putPlace * itemLen + NOTLEAFPAGELEN + indexLen + IDLEN, NOTLEAFPAGELEN, newPage);
 
 			offset -= (INDEXLENLEN + INDEXKINDLEN + INDEXNUMLEN);
 			writeNum(buffer + offset, INDEXNUMLEN, part);
@@ -612,11 +619,12 @@ int IXManager::InsertNoLeaf(int nowPage, char* index, int indexLen, int dataKind
 			writeStr(upIndex, indexLen, buffer + offset + part * itemLen + NOTLEAFPAGELEN, indexLen);
 			upRecordID = charToNum(buffer + offset + part * itemLen + NOTLEAFPAGELEN + indexLen, IDLEN);
 			writeStr(buffer2 + offset, (indexNum - part - 1) * itemLen + NOTLEAFPAGELEN, buffer + offset + (part + 1) * itemLen, (indexNum - part - 1) * itemLen + NOTLEAFPAGELEN);
-
+			  
 			moveStr(buffer2, offset + (putPlace - part - 1) * itemLen + NOTLEAFPAGELEN, offset + (putPlace - part) * itemLen + NOTLEAFPAGELEN, (indexNum - putPlace) * itemLen);
 
 			writeStr(buffer2 + offset + (putPlace - part - 1) * itemLen + NOTLEAFPAGELEN, indexLen, index, indexLen);
-			writeNum(buffer2 + offset + (putPlace - part - 1) * itemLen + NOTLEAFPAGELEN + indexLen, NOTLEAFPAGELEN, newPage);
+			writeNum(buffer2 + offset + (putPlace - part - 1) * itemLen + NOTLEAFPAGELEN + indexLen, IDLEN, recordid);
+			writeNum(buffer2 + offset + (putPlace - part - 1) * itemLen + NOTLEAFPAGELEN + indexLen + IDLEN, NOTLEAFPAGELEN, newPage);
 			offset -= (INDEXLENLEN + INDEXKINDLEN + INDEXNUMLEN);
 
 			writeNum(buffer + offset, INDEXNUMLEN, part);
@@ -659,11 +667,15 @@ int IXManager::InsertNoLeaf(int nowPage, char* index, int indexLen, int dataKind
 			writeNum(buffer3 + offset, NOTLEAFPAGELEN, nowPage);
 			offset += NOTLEAFPAGELEN;
 
-			writeStr(buffer + offset, indexLen, upIndex, indexLen);
+			writeStr(buffer3 + offset, indexLen, upIndex, indexLen);
 			offset += indexLen;
-			writeNum(buffer + offset, IDLEN, upRecordID);
+			writeNum(buffer3 + offset, IDLEN, upRecordID);
 			offset += IDLEN;
-			writeNum(buffer + offset, NOTLEAFPAGELEN, freePage);
+			writeNum(buffer3 + offset, NOTLEAFPAGELEN, freePage);
+
+			writeNum(buffer, PAGE_RANK_LEN, newRoot);
+			writeNum(buffer + PAGE_RANK_LEN * 2, ISROOTLEN, NOTROOT);
+			writeNum(buffer2, PAGE_RANK_LEN, newRoot);
 
 			fileManager->write(nowDataBaseHandle, nowPage, buffer);
 			fileManager->write(nowDataBaseHandle, freePage, buffer2);
