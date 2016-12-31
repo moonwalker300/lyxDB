@@ -1,9 +1,10 @@
 #include<iostream>
 #include<fstream>
 #include<string.h>
+#include<Windows.h>
+#include<cstdlib>
 #include "tool.h"
 #include "FileManager.h"
-#define _CRT_SECURE_NO_WARNINGS
 using namespace std;
 class FileManager::BufClass {
 public:
@@ -22,13 +23,13 @@ public:
 class FileManager::File {
 public:
 	File(std::string _fileName, int64_t _fileSize) :fileName(_fileName), fileSize(_fileSize) {
-		for (int64_t i = 0; i < 10000; i++) {
+		for (int64_t i = 0; i < 100000; i++) {
 			insertAsFirst(i);
 		}
 	}
 	File() {}
 	~File() {
-		for (int64_t i = 0; i < 10000; i++) {
+		for (int64_t i = 0; i < 100000; i++) {
 			if (bufs[i].dirty) {
 				writeFile(bufs[i].pageNumber, bufs[i].buffer);
 			}
@@ -93,7 +94,7 @@ public:
 private:
 	int64_t fileSize;
 	BufClass listHead;
-	BufClass bufs[10000];
+	BufClass bufs[100000];
 	map<int64_t, int64_t> hashMap;
 	int64_t readFile(int64_t pageNumber, char* buffer) {
 		ifstream in(fileName, ios::binary);
@@ -159,7 +160,7 @@ FileManager::~FileManager() {
 	fileMap1.clear();
 	for (int i = 0; i < fileMap2.size(); i++)
 		delete fileMap2[i];
-	
+
 	fileMap2.clear();
 }
 
@@ -210,12 +211,12 @@ int64_t FileManager::open(std::string fileName) {
 	return minUnusedDescriptor;
 }
 int64_t FileManager::close(int64_t fileDescriptor) {
-//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-//		if (it->first == fileDescriptor) {
-//			fileMap.erase(it);
-//			return 0;
-//		}
-//	}
+	//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
+	//		if (it->first == fileDescriptor) {
+	//			fileMap.erase(it);
+	//			return 0;
+	//		}
+	//	}
 	cout << "JCZ" << endl;
 	for (int i = 0; i < fileMap1.size(); i++)
 		if (fileMap1[i] == fileDescriptor) {
@@ -228,49 +229,45 @@ int64_t FileManager::close(int64_t fileDescriptor) {
 	return -1;
 }
 int64_t FileManager::read(int64_t fileDescriptor, int64_t pageNumber, char * buffer) {
-//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-//		if (it->first == fileDescriptor) {
-//			return it->second.read(pageNumber, buffer);
-//		}
-//	}
 	for (int i = 0; i < fileMap1.size(); i++)
 		if (fileMap1[i] == fileDescriptor)
 			return fileMap2[i]->read(pageNumber, buffer);
 	return -1;
 }
 int64_t FileManager::write(int64_t fileDescriptor, int64_t pageNumber, char * buffer) {
-//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-//		if (it->first == fileDescriptor) {
-//			return it->second.write(pageNumber, buffer);
-//		}
-//	}
 	for (int i = 0; i < fileMap1.size(); i++)
-		if (fileMap1[i] == fileDescriptor) 
+		if (fileMap1[i] == fileDescriptor)
 			return fileMap2[i]->write(pageNumber, buffer);
 	return -1;
 }
 int64_t FileManager::size(int64_t fileDescriptor) {
-//	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-//		if (it->first == fileDescriptor) {
-//			return it->second.size();
-//		}
-//	}
 	for (int i = 0; i < fileMap1.size(); i++)
 		if (fileMap1[i] == fileDescriptor)
 			return fileMap2[i]->size();
 	return -1;
 }
 int64_t FileManager::alloc(int64_t fileDescriptor, int64_t pageNumber) {
-	/*
-	for (auto it = fileMap.begin(); it != fileMap.end(); it++) {
-		if (it->first == fileDescriptor) {
-			return it->second.alloc(pageNumber);
-		}
-	}
-	*/
 	for (int i = 0; i < fileMap1.size(); i++)
 		if (fileMap1[i] == fileDescriptor)
 			return fileMap2[i]->alloc(pageNumber);
 	return -1;
 }
-FileManager fileManager;
+int64_t FileManager::del(std::string & fileName){
+	system((std::string("del ") + fileName).c_str());
+	return 0;
+}
+std::vector<std::string> FileManager::getFileList(){
+	std::vector<std::string> ret;
+	std::string path = "./*.lyx";
+	WIN32_FIND_DATA fd;
+	HANDLE hFind = FindFirstFile(path.c_str(), &fd);
+	if (hFind != INVALID_HANDLE_VALUE) {
+		do {
+			if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
+				ret.push_back(fd.cFileName);
+			}
+		} while (FindNextFile(hFind, &fd));
+		FindClose(hFind);
+	}
+	return ret;
+}

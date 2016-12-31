@@ -28,7 +28,8 @@ public:
 	int DeleteRecord(int headPlace, int pageRank, int slotRank);
 	//删除记录,函数返回剩余空间，返回-1表示没有数据库，-2表示没有这一页，-3表示没有这一记录
 	int UpdateRecord(int pageRank, int slotRank, char* record, int recordLen);
-	
+	void closeDataBase() { nowDataBaseHandle = 0; nowDataBaseName = ""; }
+	std::string getDataBaseName() { return nowDataBaseName; }
 	void destroyTable(int tableHead);
 };
 

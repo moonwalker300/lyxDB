@@ -23,11 +23,11 @@ public:
 	int64_t size(int64_t fileDescriptor);
 	//向文件描述符对应的文件后面添加若干个空白页，返回新的大小，如果文件描述符无效，返回-1
 	int64_t alloc(int64_t fileDescriptor, int64_t pageNumber);
+	int64_t del(std::string& fileName);
+	std::vector<std::string> getFileList();
 	std::vector<int64_t> fileMap1;
 private:
 	class BufClass;
 	class File;
 	std::vector<File*> fileMap2;
-//	std::map<int64_t, File> fileMap;
 };
-extern FileManager fileManager;

@@ -1,5 +1,4 @@
-#ifndef IXMANAGER_H
-#define IXMANAGER_H
+#pragma once
 #include "FileManager.h"
 #include "RMManager.h"
 #include <vector>
@@ -30,7 +29,5 @@ public:
 	int UpDateRecordAndIX(int rootPage, char* index, int indexLen, int dataKind, int pageRank, int slotRank, int recordID);
 	void countPage(int nowPage, std::vector<int>& pages);
 	void destoryIndex(int indexRoot);
-	
+	void closeDataBase() { nowDataBaseHandle = 0; nowDataBaseName = ""; }
 };
-
-#endif

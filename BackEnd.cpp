@@ -1,6 +1,7 @@
 #include "backend.h"
 #include "tool.h"
 #include "infolist.h"
+#include <iostream>
 using namespace std;
 BackEnd::BackEnd() {
 	fm = new FileManager();
@@ -13,7 +14,18 @@ void BackEnd::createDataBase(std::string& name) {
 }
 
 void BackEnd::dropDataBase(std::string& name) {
+	if (rm->getDataBaseName() == name) {
+		fm->close(nowDataBaseHandle);
+		rm->closeDataBase();
+		im->closeDataBase();
+		nowDataBaseHandle = 0;
+	}
+	fm->del(name + ".lyx");
+}
 
+std::vector<std::string> BackEnd::showDatabases()
+{
+	return fm->getFileList();
 }
 
 void BackEnd::useDataBase(std::string& name) {
@@ -32,6 +44,8 @@ void BackEnd::useDataBase(std::string& name) {
 		}
 	}
 	*/
+	if (nowDataBaseHandle != 0)
+		fm->close(nowDataBaseHandle);
 	rm->ChangeDataBase(name.c_str());
 	im->ChangeDataBase(name.c_str());
 	nowDataBaseHandle = rm->getNowDataBaseHandle();
@@ -39,8 +53,15 @@ void BackEnd::useDataBase(std::string& name) {
 
 DatabaseMeta BackEnd::getDataBaseMeta() {
 	char buffer[PAGE_SIZE];
-	fm->read(nowDataBaseHandle, 0, buffer); //取出库页
 	DatabaseMeta ret;
+	if (nowDataBaseHandle == 0) {
+		ret.valid = false;
+		return ret;
+	}
+	else
+		ret.valid = true;
+	fm->read(nowDataBaseHandle, 0, buffer); //取出库页
+	
 	ret.tableNumber = charToNum(buffer, TABLE_NUM_LEN);
 	int offset = TABLE_NUM_LEN;
 	for (int i = 0; i < ret.tableNumber; i++) {
@@ -49,6 +70,7 @@ DatabaseMeta BackEnd::getDataBaseMeta() {
 		writeStr(ret.tables[i].name, TABLE_NAME_LEN, buffer + offset);
 		offset += TABLE_NAME_LEN;
 	}
+	
 	return ret;
 }
 
@@ -57,6 +79,7 @@ void BackEnd::createTable(TableMeta& tableMeta) {
 	//拷贝表信息
 	writeStr(tableInfo.tableName, TABLE_NAME_LEN, tableMeta.name);
 	tableInfo.columnNum = tableMeta.columnNumber;
+	writeStr(tableInfo.checkLimit, CHECK_LIMIT_LEN, tableMeta.checkLimit);
 	for (int i = 0; i < tableInfo.columnNum; i++) {	
 		writeNum(tableInfo.columns[i].columnKind, COLUMN_KIND_LEN, tableMeta.columns[i].dataType);
 		writeNum(tableInfo.columns[i].columnLen, COLUMN_LEN_LEN, tableMeta.columns[i].length);
@@ -76,7 +99,7 @@ void BackEnd::dropTable(int no) {
 	int offset = TABLE_NUM_LEN + (TABLE_HEAD_PLACE_LEN + TABLE_NAME_LEN) * no;
 	int headPlace = charToNum(buffer + offset, TABLE_HEAD_PLACE_LEN);
 	//修改库页
-	writeNum(buffer, 0, tableNum - 1);
+	writeNum(buffer, TABLE_NUM_LEN, tableNum - 1);
 	moveStr(buffer, offset + TABLE_HEAD_PLACE_LEN + TABLE_NAME_LEN, offset, (tableNum - no - 1) * (TABLE_HEAD_PLACE_LEN + TABLE_NAME_LEN));
 	fm->write(nowDataBaseHandle, 0, buffer);
 
@@ -132,6 +155,7 @@ TableMeta BackEnd::getTableMeta(int no) {
 		ret.columns[i].indexLocation = charToNum(buffer + offset, INDEXLENLEN);
 		offset += INDEXLENLEN;
 	}
+	writeStr(ret.checkLimit, CHECK_LIMIT_LEN, buffer + CHECK_LIMIT_PLACE);
 	return ret;
 }
 
@@ -149,6 +173,11 @@ void BackEnd::insertRecord(int no, std::vector<ContentEntry>& line) {
 	char tmpRecord[PAGE_SIZE];
 	int recordLen = 0;
 	fm->read(nowDataBaseHandle, headPlace, buffer);
+	//更新id上限
+	int oriId = charToNum(buffer + PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN * 2, IDLEN);
+	if (oriId <= line[0].ival)
+		oriId = line[0].ival + 1;
+	writeNum(buffer + PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN * 2, IDLEN, oriId);
 	//形成定长数据
 	offset = PAGE_RANK_LEN + TABLE_NAME_LEN + PAGE_RANK_LEN * 2 + IDLEN + COLUMN_NUM_LEN;
 	int cn = line.size();
@@ -217,6 +246,9 @@ void IndexIterator::operator++(int) {
 		if (slotRank == indexNum - 1) {
 			offset += (LEAFPAGELEN + LEAFSLOTLEN + indexLen + IDLEN + LEAFNEXTSPACE);
 			pageRank = charToNum(buffer + offset, LEAFNEXTLEN - LEAFNEXTSPACE);
+			if (pageRank == 21) {
+				int a = 2;
+			}
 			if (pageRank == NOPAGE) {
 				flag = true;
 				break;
@@ -268,7 +300,8 @@ void IndexIterator::read() {
 	}
 	int count = 7;
 	for (int i = 0; i < columnNum; i++) {
-		if (tmp[tmpoffset] & (1 << count) > 0)
+		int xx = tmp[tmpoffset] & (1 << count);
+		if (xx != 0)
 			entries[i].isNull = true;
 		else
 			entries[i].isNull = false;
@@ -386,7 +419,6 @@ IndexIterator BackEnd::begin(int no, Filter f) {
 		ret.read();
 	} else
 		ret.flag = true;
-
 	return ret;
 }
 
@@ -491,3 +523,4 @@ void IndexIterator::UpdateFlush() {
 	}
 	fileManager->write(nowDataBaseHandle, tableHead, bufferTable);
 }
+BackEnd be;

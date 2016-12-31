@@ -137,6 +137,8 @@ int RMManager::CreateTable(/*char *tableNum,*/ TableInfomation tableInfo) {
 		writeStr(buffer + offset, INDEX_PLACE_LEN, tableInfo.columns[i].indexPlace, INDEX_PLACE_LEN);
 		offset += INDEX_PLACE_LEN;
 	}
+	//Ð´CheckLimit
+	writeStr(buffer + CHECK_LIMIT_PLACE, CHECK_LIMIT_LEN, tableInfo.checkLimit);
 	fileManager->write(nowDataBaseHandle, TableHeadPageRank, buffer);
 
 	//Ð´Êý¾ÝÊ×Ò³
@@ -389,7 +391,7 @@ void RMManager::destroyTable(int tableHead) {
 		if (nowPage == NOPAGE)
 			break;
 		tmpWorker.push_back(nowPage);
-		fileManager->read(nowDataBaseHandle, tableHead, buffer);
+		fileManager->read(nowDataBaseHandle, nowPage, buffer);
 		nowPage = charToNum(buffer + PAGE_RANK_LEN * 3, PAGE_RANK_LEN);
 	}
 	freePage(tmpWorker);

@@ -2,7 +2,7 @@
 #include<cstdint>
 #include<string>
 enum DataType {
-	INT = 1, CHAR = 2, VARCHAR = 3, PRIMARY
+	DTINT = 1, DTCHAR = 2, DTVARCHAR = 3, DTDATE = 4, DTDECIMAL = 5, DTPRIMARY
 };
 class ColumnMeta {
 public:
@@ -18,9 +18,10 @@ public:
 	char name[28];
 	int32_t firstDataPage;
 	int32_t firstBlankPage;
-	int32_t columnNumber;
 	int32_t id;
+	int32_t columnNumber;
 	ColumnMeta columns[64];
+	char checkLimit[100];
 	int getNo(std::string& n){
 		for (int i = 0; i < columnNumber; i++) {
 			if (std::string(columns[i].name) == n) {
@@ -39,6 +40,7 @@ class DatabaseMeta {
 public:
 	int32_t tableNumber;
 	TableInfo tables[64];
+	int32_t valid;
 	int getNo(std::string& n) {
 		for (int i = 0; i < tableNumber; i++) {
 			if (std::string(tables[i].name) == n) {

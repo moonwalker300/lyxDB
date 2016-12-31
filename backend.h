@@ -1,24 +1,8 @@
-#ifndef BACKEND_H
-#define BACKEND_H
+#pragma once
 #include "IXManager.h"
 #include "RMManager.h"
-
 #include "Meta.h"
-//之后可能删去这个类的定义
-enum FilterType {
-	IntFilter, StringFilter
-};
-enum FilterOperator {
-	FEQ, FLE, FLT, FGE, FGT, FIsNull, FZERO
-};
-class Filter {
-public:
-	int columnNumber;
-	FilterType type;
-	FilterOperator op;
-	int ival;
-	std::string sval;
-};
+#include "filter.h"
 class ContentEntry {
 public:
 	bool isString;
@@ -26,10 +10,9 @@ public:
 	int ival;
 	std::string sval;
 	ContentEntry() :isNull(true) {}
-	ContentEntry(int i) :isString(false), isNull(true), ival(i) {}
-	ContentEntry(std::string s) :isString(true), isNull(true), sval(s) {}
+	ContentEntry(int i) :isString(false), isNull(false), ival(i) {}
+	ContentEntry(std::string s) :isString(true), isNull(false), sval(s) {}
 };
-
 class IndexIterator {
 public:
 	bool flag;
@@ -66,19 +49,15 @@ public:
 	void Update(int i, ContentEntry c);
 	void UpdateFlush();
 };
-
 class BackEnd {
 	RMManager* rm;
 	IXManager* im;
 	int64_t nowDataBaseHandle;
-	//std::vector<int> idLimit;
 public:
 	FileManager* fm;
 	BackEnd();
 	~BackEnd() { 
 		delete fm; 
-	//	delete im; 
-	//	delete rm; 
 	}
 	void createDataBase(std::string& name);
 	void dropDataBase(std::string& name);
@@ -91,5 +70,4 @@ public:
 	void insertRecord(int no, std::vector<ContentEntry>& line);
 	IndexIterator begin(int no, Filter f);
 };
-
-#endif
+extern BackEnd be;

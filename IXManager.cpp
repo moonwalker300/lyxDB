@@ -95,6 +95,7 @@ int IXManager::CreateIndex(int tableRank, int columnRank) {
 	writeNum(buffer + offset, LEAFNEXTLEN, NOPAGE);
 	fileManager->write(nowDataBaseHandle, indexRoot, buffer);
 	//将所有记录全部插入索引中 To Do
+	return 0;
 }
 
 IXManager::IXManager(FileManager *fm) {
@@ -268,9 +269,12 @@ int IXManager::InsertRecordAndIX(int rootPage, char* index, int indexLen, int da
 	indexKind = charToNum(buffer + offset, INDEXKINDLEN);
 	offset += INDEXKINDLEN;
 	//indexLen = charToNum(buffer + offset, INDEXLENLEN);
+	int yourFather = 0;
 
 	while (true) {
 		fileManager->read(nowDataBaseHandle, nowPage, buffer);
+		writeNum(buffer, PAGE_RANK_LEN, yourFather);
+		fileManager->write(nowDataBaseHandle, nowPage, buffer);
 		offset = PAGE_RANK_LEN + PAGE_RANK_LEN + ISROOTLEN;
 		int isLeaf = charToNum(buffer + offset, ISLEAFLEN);
 		if (isLeaf == ISLEAF)
@@ -281,7 +285,7 @@ int IXManager::InsertRecordAndIX(int rootPage, char* index, int indexLen, int da
 		offset += INDEXKINDLEN;
 		offset += INDEXLENLEN;
 		//遍历该结点上的索引
-
+		yourFather = nowPage;
 		int findNode = indexNum; //去向第几个儿子指针
 		for (int i = 0; i < indexNum; i++) {
 			writeStr(tmpIndex, indexLen, buffer + offset + i * (NOTLEAFPAGELEN + indexLen + IDLEN) + NOTLEAFPAGELEN, indexLen);
@@ -369,6 +373,9 @@ int IXManager::InsertLeaf(int nowPage, char* index, int indexLen, int dataKind, 
 		return 0;
 	}
 	else {
+		if (nowPage == 21) {
+			int lyx = 22;
+		}
 		int freePage = FindFreePage();
 		char buffer2[PAGE_SIZE];
 		
